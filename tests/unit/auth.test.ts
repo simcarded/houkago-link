@@ -16,4 +16,10 @@ describe('session authorization', () => {
     expect(await getSession(request as never, { SESSION_SECRET: secret } as Env)).toBeNull();
     expect(assertSameOrigin(request as never)).toBe(false);
   });
+  it('treats malformed session cookies as unauthenticated', async () => {
+    for (const token of ['bad.%FF', 'bad.!!!']) {
+      const request = new Request('https://example.test/api/spaces', { headers: { Cookie: `houkago_session=${token}` } });
+      expect(await getSession(request as never, { SESSION_SECRET: secret } as Env)).toBeNull();
+    }
+  });
 });

@@ -37,16 +37,13 @@ export async function signToken(payload: object, secret: string): Promise<string
 export async function verifyToken<T>(token: string, secret: string): Promise<T | null> {
   const parts = token.split('.');
   if (parts.length !== 2) return null;
-  const [body, sigB64] = parts;
-  const key = await importHmacKey(secret);
-  const valid = await crypto.subtle.verify(
-    'HMAC',
-    key,
-    fromBase64Url(sigB64),
-    new TextEncoder().encode(body),
-  );
-  if (!valid) return null;
   try {
+    const [body, sigB64] = parts;
+    const key = await importHmacKey(secret);
+    const valid = await crypto.subtle.verify(
+      'HMAC', key, fromBase64Url(sigB64), new TextEncoder().encode(body),
+    );
+    if (!valid) return null;
     return JSON.parse(new TextDecoder().decode(fromBase64Url(body))) as T;
   } catch {
     return null;
@@ -61,7 +58,7 @@ export function parseCookies(header: string | null): Record<string, string> {
     if (idx === -1) continue;
     const k = part.slice(0, idx).trim();
     const v = part.slice(idx + 1).trim();
-    out[k] = decodeURIComponent(v);
+    try { out[k] = decodeURIComponent(v); } catch { /* Ignore malformed cookies. */ }
   }
   return out;
 }
