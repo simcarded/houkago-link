@@ -94,7 +94,7 @@ export function App() {
       ? [...favoriteIds, spaceId]
       : favoriteIds.filter((id) => id !== spaceId);
     setFavoriteIds(updated);
-    localStorage.setItem('houkago_favorites', JSON.stringify(updated));
+    if (!session.authenticated) localStorage.setItem('houkago_favorites', JSON.stringify(updated));
 
     if (session.authenticated) {
       await fetch('/api/favorites', {
@@ -163,7 +163,7 @@ export function App() {
     };
     const next = [created, ...reservations];
     setReservations(next);
-    localStorage.setItem('houkago_demo_reservations', JSON.stringify(next));
+    if (!session.authenticated) localStorage.setItem('houkago_demo_reservations', JSON.stringify(next));
     setBaseSpaces((prev) =>
       prev.map((s) =>
         s.id === space.id
@@ -185,7 +185,7 @@ export function App() {
     }
     const next = reservations.map((r) => (r.id === id ? { ...r, status: 'cancelled' as const } : r));
     setReservations(next);
-    localStorage.setItem('houkago_demo_reservations', JSON.stringify(next));
+    if (!session.authenticated) localStorage.setItem('houkago_demo_reservations', JSON.stringify(next));
   };
 
   const handleCheckInReservation = async (id: string) => {
@@ -199,7 +199,7 @@ export function App() {
     }
     const next = reservations.map((r) => (r.id === id ? { ...r, status: 'checked_in' as const } : r));
     setReservations(next);
-    localStorage.setItem('houkago_demo_reservations', JSON.stringify(next));
+    if (!session.authenticated) localStorage.setItem('houkago_demo_reservations', JSON.stringify(next));
   };
 
   const handleAddSimulatedSpace = (space: Omit<Facility, 'id' | 'availableSeats'>) => {
@@ -313,6 +313,11 @@ export function App() {
                     onLogout={async () => {
                       await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
                       setSession({ authenticated: false, user: null });
+                      localStorage.removeItem('houkago_favorites');
+                      localStorage.removeItem('houkago_demo_reservations');
+                      setFavoriteIds([]);
+                      setReservations([]);
+                      await loadAll();
                     }}
                   />
                 )}
