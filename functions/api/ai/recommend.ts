@@ -1,7 +1,7 @@
 import type { Env } from '../../_lib/types';
 import { assertSameOrigin, jsonResponse } from '../../_lib/auth';
 
-const DAILY_REQUEST_CAP = 250; // 10,000 Neurons/day無料枠を確実に守る上限
+const DAILY_REQUEST_CAP = 250; // 仮の回数制限。Neuron上限や同時リクエストの制御を保証しない。
 const MODEL_ID = '@cf/meta/llama-3.1-8b-instruct-fp8-fast';
 
 interface ParsedCriteria {
