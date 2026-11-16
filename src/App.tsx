@@ -93,20 +93,21 @@ export function App() {
 
   const handleToggleFavorite = async (spaceId: string) => {
     const nextFav = !favoriteIds.includes(spaceId);
+    const isSimulation = simulatedSpaces.some((space) => space.id === spaceId);
+    if (session.authenticated && !isSimulation) {
+      const response = await fetch('/api/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ spaceId, favorite: nextFav }),
+      });
+      if (!response.ok) throw new Error('お気に入りを保存できませんでした。再試行してください。');
+    }
     const updated = nextFav
       ? [...favoriteIds, spaceId]
       : favoriteIds.filter((id) => id !== spaceId);
     setFavoriteIds(updated);
     if (!session.authenticated) localStorage.setItem('houkago_favorites', JSON.stringify(updated));
-
-    if (session.authenticated) {
-      await fetch('/api/favorites', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ spaceId, favorite: nextFav }),
-      }).catch(() => {});
-    }
   };
 
   const handleCreateReservation = async ({

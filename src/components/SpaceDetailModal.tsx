@@ -23,7 +23,7 @@ interface SpaceDetailModalProps {
   space: Facility | null;
   onClose: () => void;
   isFavorite: boolean;
-  onToggleFavorite: (spaceId: string) => void;
+  onToggleFavorite: (spaceId: string) => Promise<void>;
   session: UserSession;
   onCreateReservation: (payload: {
     space: Facility;
@@ -53,11 +53,14 @@ export function SpaceDetailModal({
   const [seatsCount, setSeatsCount] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [favoriteError, setFavoriteError] = useState('');
+  const [savingFavorite, setSavingFavorite] = useState(false);
   const [completed, setCompleted] = useState<Reservation | null>(null);
 
   useEffect(() => {
     setCompleted(null);
     setError('');
+    setFavoriteError('');
     setSubmitting(false);
   }, [space?.id]);
 
@@ -126,8 +129,16 @@ export function SpaceDetailModal({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => onToggleFavorite(space.id)}
+                disabled={savingFavorite}
+                onClick={async () => {
+                  setFavoriteError('');
+                  setSavingFavorite(true);
+                  try { await onToggleFavorite(space.id); }
+                  catch { setFavoriteError('お気に入りを保存できませんでした。再試行してください。'); }
+                  finally { setSavingFavorite(false); }
+                }}
                 aria-label="お気に入り切替"
+                aria-pressed={isFavorite}
                 className={`rounded-xl p-2 border transition ${
                   isFavorite
                     ? 'bg-rose-50 border-rose-200 text-rose-600'
@@ -146,6 +157,8 @@ export function SpaceDetailModal({
               </button>
             </div>
           </div>
+
+          {favoriteError && <p role="alert" className="text-xs text-rose-700">{favoriteError}</p>}
 
           <SpaceIllustration hue={space.themeHue} providerType={space.providerType} label={space.name} />
 
