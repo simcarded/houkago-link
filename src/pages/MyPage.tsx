@@ -59,6 +59,12 @@ export function MyPage({
         )}
       </GlassCard>
 
+      {new URLSearchParams(window.location.search).has('auth_error') && (
+        <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          Googleログインは現在利用できません。発表用のデモ予約はプレゼンモードで利用できます。
+        </p>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <GlassCard className="p-5 space-y-3">
           <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
