@@ -18,8 +18,10 @@ test('ログイン中の発表モードはデモ予約のみを使う', async ({
   await page.goto('/demo');
   for (let i=0; i<3; i++) await page.getByRole('button',{name:/次へ/}).click();
   await page.getByRole('heading',{name:space.name}).first().click();
-  await expect(page.getByRole('button',{name:'予約を確定する',exact:true})).toHaveCount(0);
-  await page.getByRole('button',{name:'デモ予約を確定（発表用）'}).click();
+  await expect(page.getByRole('button',{name:'予約内容を確認',exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'デモ予約の内容を確認（発表用）'}).click();
+  await expect(page.getByRole('heading',{name:'予約内容の確認（発表用デモ）'})).toBeVisible();
+  await page.getByRole('button',{name:'この内容で確定'}).click();
   await expect(page.getByText('予約を登録しました（プロトタイプ）')).toBeVisible();
   expect(savedToServer).toBe(0);
   await page.getByRole('button',{name:'閉じる'}).click();

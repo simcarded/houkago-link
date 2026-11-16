@@ -1,0 +1,27 @@
+import { expect, test } from '@playwright/test';
+import { INITIAL_DEMO_SPACES, INITIAL_REGION_STATS } from '../../src/data/demoData';
+
+test.use({ serviceWorkers: 'block' });
+
+test('保存予約は内容を確認するまで送信しない', async ({ page }) => {
+  const space = INITIAL_DEMO_SPACES[0];
+  let posts = 0;
+  await page.route('**/api/**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/api/auth/me') return route.fulfill({ json: { authenticated: true, user: { sub:'test', displayName:'Test', isAdmin:false } } });
+    if (path === '/api/spaces') return route.fulfill({ json: { spaces:[space] } });
+    if (path === '/api/disparity') return route.fulfill({ json: { regions:INITIAL_REGION_STATS } });
+    if (path === '/api/favorites') return route.fulfill({ json: { favoriteIds:[] } });
+    if (path === '/api/reservations' && route.request().method() === 'GET') return route.fulfill({ json: { reservations:[] } });
+    if (path === '/api/reservations') { posts++; return route.fulfill({ status:201, json:{ok:true,id:'res-test'} }); }
+    return route.fulfill({ status:404, json:{} });
+  });
+  await page.goto('/');
+  await page.getByRole('heading', { name:space.name }).click();
+  await page.getByRole('button', { name:'予約内容を確認', exact:true }).click();
+  await expect(page.getByRole('heading', { name:'予約内容の確認', exact:true })).toBeVisible();
+  expect(posts).toBe(0);
+  await page.getByRole('button', { name:'この内容で確定' }).click();
+  await expect(page.getByText('予約を登録しました（プロトタイプ）')).toBeVisible();
+  expect(posts).toBe(1);
+});

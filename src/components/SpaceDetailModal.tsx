@@ -55,12 +55,14 @@ export function SpaceDetailModal({
   const [error, setError] = useState('');
   const [favoriteError, setFavoriteError] = useState('');
   const [savingFavorite, setSavingFavorite] = useState(false);
+  const [bookingMode, setBookingMode] = useState<'demo' | 'saved' | null>(null);
   const [completed, setCompleted] = useState<Reservation | null>(null);
 
   useEffect(() => {
     setCompleted(null);
     setError('');
     setFavoriteError('');
+    setBookingMode(null);
     setSubmitting(false);
   }, [space?.id]);
 
@@ -68,7 +70,7 @@ export function SpaceDetailModal({
 
   const handleBook = async (demoOverride = false) => {
     setError('');
-    if (startTime >= endTime) {
+    if (!reserveDate || !startTime || !endTime || startTime >= endTime) {
       setError('終了時間は開始時間より後に設定してください。');
       return;
     }
@@ -266,6 +268,17 @@ export function SpaceDetailModal({
                 ※本画面は構想を表現するプロトタイプであり、実在施設への入室権限を付与するものではありません。
               </p>
             </motion.div>
+          ) : bookingMode ? (
+            <div className="rounded-2xl bg-blue-50 border border-blue-200 p-4 space-y-3" aria-labelledby="booking-confirmation">
+              <h3 id="booking-confirmation" className="text-sm font-bold text-slate-900">予約内容の確認{bookingMode === 'demo' ? '（発表用デモ）' : ''}</h3>
+              <p className="text-sm text-slate-800">{space.name}<br />{reserveDate} {startTime}〜{endTime} ・ {seatsCount}席</p>
+              <p className="text-xs text-slate-600">選択日時の空席は確定時に確認します。</p>
+              {error && <p role="alert" className="text-xs text-rose-700">{error}</p>}
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={submitting} onClick={() => { setBookingMode(null); setError(''); }} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs">内容を修正</button>
+                <button type="button" disabled={submitting} onClick={() => handleBook(bookingMode === 'demo')} className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-medium text-white disabled:opacity-50">{submitting ? '予約処理中...' : 'この内容で確定'}</button>
+              </div>
+            </div>
           ) : (
             <div className="rounded-2xl bg-white/80 border border-slate-200/80 p-4 space-y-3">
               <div className="text-sm font-bold text-slate-900">利用日時の予約</div>
@@ -330,20 +343,20 @@ export function SpaceDetailModal({
                     <button
                       type="button"
                       disabled={submitting || space.availableSeats < seatsCount}
-                      onClick={() => handleBook(true)}
+                      onClick={() => { setError(''); setBookingMode('demo'); }}
                       className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
                     >
-                      デモ予約を確定（発表用）
+                      デモ予約の内容を確認（発表用）
                     </button>
                   )}
                   {!demoOnly && (session.authenticated ? (
                     <button
                       type="button"
                       disabled={submitting}
-                      onClick={() => handleBook(false)}
+                      onClick={() => { setError(''); setBookingMode('saved'); }}
                       className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                     >
-                      {submitting ? '予約処理中...' : '予約を確定する'}
+                      予約内容を確認
                     </button>
                   ) : (
                     <div className="flex flex-wrap items-center gap-2">
