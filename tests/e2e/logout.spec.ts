@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+test.use({ serviceWorkers: 'block' });
+
 test('ログアウトすると他の利用者の予約が残らない', async ({ page }) => {
   let loggedIn = true;
   await page.route('**/api/**', async (route) => {

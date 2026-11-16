@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+test.use({ serviceWorkers: 'block' });
+
 test('予約変更は失敗時に元の予約を残し、成功時に反映する', async ({page}) => {
   let fail = true;
   await page.route('**/api/**', async (route) => {
