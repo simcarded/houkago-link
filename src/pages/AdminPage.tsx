@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ShieldCheck, Plus } from 'lucide-react';
 import type { Facility, RegionStat, Reservation, UserSession } from '../types';
 import { GlassCard } from '../components/LiquidUI';
+import { fetchSpaces } from '../lib/api';
 
 interface AdminPageProps {
   session: UserSession;
@@ -11,6 +12,7 @@ interface AdminPageProps {
 }
 
 export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPageProps) {
+  const [adminSpaces, setAdminSpaces] = useState<Facility[]>(spaces);
   const [name, setName] = useState('');
   const [providerName, setProviderName] = useState('');
   const [regionId, setRegionId] = useState(regions[0]?.id || 'nagoya-center');
@@ -22,6 +24,7 @@ export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPa
 
   useEffect(() => {
     if (!session.user?.isAdmin) return;
+    fetchSpaces(true).then((result) => setAdminSpaces(result.spaces));
     fetch('/api/reservations?scope=admin', { credentials: 'same-origin' })
       .then((r) => (r.ok ? r.json() : { reservations: [] }))
       .then((d: { reservations?: Reservation[] }) => setAdminReservations(d.reservations || []))
@@ -70,6 +73,7 @@ export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPa
       setAddress('');
       setStatusMsg('施設をD1データベースへ登録しました。');
       await onRefreshSpaces();
+      setAdminSpaces((await fetchSpaces(true)).spaces);
     } else {
       setStatusMsg('登録に失敗しました。');
     }
@@ -83,6 +87,7 @@ export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPa
       body: JSON.stringify({ isPublished: !space.isPublished }),
     });
     await onRefreshSpaces();
+    setAdminSpaces((await fetchSpaces(true)).spaces);
   };
 
   return (
@@ -147,7 +152,7 @@ export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPa
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <GlassCard className="p-5 space-y-2 text-xs">
           <h2 className="text-sm font-bold text-slate-900">登録施設一覧（公開切替）</h2>
-          {spaces.map((s) => (
+          {adminSpaces.map((s) => (
             <div key={s.id} className="flex items-center justify-between border-b border-slate-100 py-2">
               <span>{s.name}</span>
               <button
