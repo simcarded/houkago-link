@@ -42,7 +42,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     SELECT s.*,
       COALESCE((
         SELECT SUM(r.seats_count) FROM reservations r
-        WHERE r.space_id = s.id AND r.reserve_date = ? AND r.status = 'confirmed'
+        WHERE r.space_id = s.id AND r.reserve_date = ? AND r.status IN ('confirmed', 'checked_in')
       ), 0) AS booked_seats
     FROM spaces s
     ${allowAll ? '' : 'WHERE s.is_published = 1'}
@@ -133,7 +133,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       body.barrierFree ? 1 : 0,
       JSON.stringify(Array.isArray(body.rules) ? body.rules.slice(0, 6) : ['プロトタイプ表示用施設']),
       String(body.notes || '').slice(0, 200),
-      body.isPublished !== false ? 1 : 0,
+      0, // Newly registered facilities require explicit publication.
       1,
     )
     .run();

@@ -8,5 +8,6 @@ binding = "AI"
 [[d1_databases]]
 binding = "DB"
 database_name = "houkago-link-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "94f4803c-2cc0-4fee-a6fc-f4e1b7b5e526"
 migrations_dir = "migrations"
+

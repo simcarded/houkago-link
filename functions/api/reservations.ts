@@ -51,6 +51,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     !/^\d{2}:\d{2}$/.test(startTime) ||
     !/^\d{2}:\d{2}$/.test(endTime) ||
     startTime >= endTime ||
+    !Number.isInteger(seatsCount) ||
     seatsCount < 1 ||
     seatsCount > 4
   ) {
@@ -66,14 +67,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
      WHERE EXISTS (SELECT 1 FROM spaces WHERE id = ? AND is_published = 1)
        AND NOT EXISTS (
          SELECT 1 FROM reservations
-         WHERE user_sub = ? AND reserve_date = ? AND status = 'confirmed'
+         WHERE user_sub = ? AND reserve_date = ? AND status IN ('confirmed', 'checked_in')
            AND NOT (end_time <= ? OR start_time >= ?)
        )
        AND (
          (SELECT total_seats FROM spaces WHERE id = ?) -
          COALESCE((
            SELECT SUM(seats_count) FROM reservations
-           WHERE space_id = ? AND reserve_date = ? AND status = 'confirmed'
+           WHERE space_id = ? AND reserve_date = ? AND status IN ('confirmed', 'checked_in')
              AND NOT (end_time <= ? OR start_time >= ?)
          ), 0)
        ) >= ?`,
