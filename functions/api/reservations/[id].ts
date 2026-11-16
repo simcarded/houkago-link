@@ -1,5 +1,6 @@
 import type { Env } from '../../_lib/types';
 import { assertSameOrigin, getSession, jsonResponse } from '../../_lib/auth';
+import { validReservation } from '../../_lib/reservation';
 
 export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params }) => {
   if (!assertSameOrigin(request)) return jsonResponse({ error: 'Forbidden' }, 403);
@@ -11,6 +12,32 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   const id = String(params.id || '');
   const body = (await request.json()) as Record<string, unknown>;
   const status = String(body.status || '');
+
+  if (body.action === 'reschedule') {
+    const reserveDate = String(body.reserveDate || '');
+    const startTime = String(body.startTime || '');
+    const endTime = String(body.endTime || '');
+    const seatsCount = Number(body.seatsCount);
+    if (!validReservation(reserveDate, startTime, endTime, seatsCount)) {
+      return jsonResponse({ error: '予約日時の入力値が不正です' }, 400);
+    }
+    // A single update keeps the old reservation intact when the new slot is unavailable.
+    const result = await env.DB.prepare(`UPDATE reservations AS r
+      SET reserve_date = ?, start_time = ?, end_time = ?, seats_count = ?
+      WHERE r.id = ? AND r.user_sub = ? AND r.status = 'confirmed'
+        AND EXISTS (SELECT 1 FROM spaces s WHERE s.id = r.space_id AND s.is_published = 1 AND s.open_time <= ? AND s.close_time >= ?)
+        AND NOT EXISTS (SELECT 1 FROM reservations other WHERE other.id != r.id AND other.user_sub = r.user_sub
+          AND other.reserve_date = ? AND other.status IN ('confirmed', 'checked_in')
+          AND NOT (other.end_time <= ? OR other.start_time >= ?))
+        AND (SELECT s.total_seats FROM spaces s WHERE s.id = r.space_id) - COALESCE(
+          (SELECT SUM(other.seats_count) FROM reservations other WHERE other.id != r.id AND other.space_id = r.space_id
+            AND other.reserve_date = ? AND other.status IN ('confirmed', 'checked_in')
+            AND NOT (other.end_time <= ? OR other.start_time >= ?)), 0) >= ?`)
+      .bind(reserveDate, startTime, endTime, seatsCount, id, session.sub, startTime, endTime,
+        reserveDate, startTime, endTime, reserveDate, startTime, endTime, seatsCount).run();
+    if (result.meta.changes !== 1) return jsonResponse({ error: '変更できませんでした。予約状況と営業時間をご確認ください。' }, 409);
+    return jsonResponse({ ok: true });
+  }
 
   if (status === 'cancelled' || status === 'checked_in') {
     const query =

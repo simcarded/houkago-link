@@ -10,6 +10,7 @@ interface MyPageProps {
   favoriteIds: string[];
   onCancelReservation: (id: string) => Promise<void>;
   onCheckInReservation: (id: string) => Promise<void>;
+  onReschedule: (id: string, changes: { reserveDate: string; startTime: string; endTime: string; seatsCount: number }) => Promise<void>;
   onSelectSpace: (space: Facility) => void;
   onLogout: () => Promise<void>;
 }
@@ -21,10 +22,14 @@ export function MyPage({
   favoriteIds,
   onCancelReservation,
   onCheckInReservation,
+  onReschedule,
   onSelectSpace,
   onLogout,
 }: MyPageProps) {
   const [qrTarget, setQrTarget] = useState<Reservation | null>(null);
+  const [editing, setEditing] = useState<Reservation | null>(null);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   const favoriteSpaces = spaces.filter((s) => favoriteIds.includes(s.id));
   const upcoming = reservations.filter((r) => r.status !== 'cancelled');
   const history = reservations.filter((r) => r.status === 'cancelled');
@@ -70,6 +75,7 @@ export function MyPage({
           <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
             <Calendar className="h-4 w-4 text-blue-600" /> 今後の予約・チェックイン
           </h2>
+          {error && <p role="alert" className="text-xs text-rose-700">{error}</p>}
           {upcoming.length === 0 ? (
             <p className="text-xs text-slate-500">予約はありません。</p>
           ) : (
@@ -91,17 +97,22 @@ export function MyPage({
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => {
-                        setQrTarget(r);
-                        onCheckInReservation(r.id);
+                      onClick={async () => {
+                        setError('');
+                        try { await onCheckInReservation(r.id); setQrTarget(r); }
+                        catch { setError('チェックインを保存できませんでした。再試行してください。'); }
                       }}
+                      disabled={r.status !== 'confirmed'}
                       className="inline-flex items-center gap-1 rounded-lg bg-blue-50 border border-blue-200 px-2.5 py-1 text-blue-700"
                     >
                       <QrCode className="h-3.5 w-3.5" /> QRデモ
                     </button>
+                    {r.status === 'confirmed' && <button type="button" onClick={() => { setError(''); setEditing(r); }}
+                      className="rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-blue-700">変更</button>}
                     <button
                       type="button"
-                      onClick={() => onCancelReservation(r.id)}
+                      disabled={r.status !== 'confirmed'}
+                      onClick={async () => { setError(''); try { await onCancelReservation(r.id); } catch { setError('予約を取り消せませんでした。再試行してください。'); } }}
                       className="inline-flex items-center gap-1 rounded-lg bg-rose-50 border border-rose-200 px-2.5 py-1 text-rose-700"
                     >
                       <Trash2 className="h-3.5 w-3.5" /> 取消
@@ -111,6 +122,25 @@ export function MyPage({
               ))}
             </div>
           )}
+
+          {editing && <form className="space-y-2 rounded-2xl border border-blue-200 bg-white p-3 text-xs" onSubmit={async (event) => {
+            event.preventDefault(); setSaving(true); setError('');
+            if (!editing.reserveDate || editing.startTime >= editing.endTime || !Number.isInteger(editing.seatsCount) || editing.seatsCount < 1 || editing.seatsCount > 4) {
+              setError('日時と座席数を確認してください。'); setSaving(false); return;
+            }
+            try { await onReschedule(editing.id, { reserveDate: editing.reserveDate, startTime: editing.startTime, endTime: editing.endTime, seatsCount: editing.seatsCount }); setEditing(null); }
+            catch (reason) { setError(reason instanceof Error ? reason.message : '予約を変更できませんでした。'); }
+            finally { setSaving(false); }
+          }}>
+            <strong>予約日時・座席数の変更</strong>
+            <div className="grid grid-cols-2 gap-2">
+              <label>利用日<input required type="date" value={editing.reserveDate} onChange={(e) => setEditing({ ...editing, reserveDate: e.target.value })} className="block w-full rounded border p-1" /></label>
+              <label>座席数<input required type="number" min="1" max="4" value={editing.seatsCount} onChange={(e) => setEditing({ ...editing, seatsCount: Number(e.target.value) })} className="block w-full rounded border p-1" /></label>
+              <label>開始<input required type="time" value={editing.startTime} onChange={(e) => setEditing({ ...editing, startTime: e.target.value })} className="block w-full rounded border p-1" /></label>
+              <label>終了<input required type="time" value={editing.endTime} onChange={(e) => setEditing({ ...editing, endTime: e.target.value })} className="block w-full rounded border p-1" /></label>
+            </div>
+            <div className="flex gap-2"><button disabled={saving} className="rounded bg-blue-600 px-3 py-1 text-white">変更を保存</button><button type="button" onClick={() => setEditing(null)} className="rounded border px-3 py-1">戻る</button></div>
+          </form>}
 
           {qrTarget && (
             <div className="rounded-2xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">

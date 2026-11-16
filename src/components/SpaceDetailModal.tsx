@@ -67,14 +67,14 @@ export function SpaceDetailModal({
       return;
     }
     setSubmitting(true);
-    const res = await onCreateReservation({
-      space,
-      reserveDate,
-      startTime,
-      endTime,
-      seatsCount,
-      demoOverride,
-    });
+    let res;
+    try {
+      res = await onCreateReservation({ space, reserveDate, startTime, endTime, seatsCount, demoOverride });
+    } catch {
+      setSubmitting(false);
+      setError('通信に失敗しました。予約状況を確認してから再試行してください。');
+      return;
+    }
     setSubmitting(false);
     if (!res.ok) {
       setError(res.error || '予約に失敗しました。');

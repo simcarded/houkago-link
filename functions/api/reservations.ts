@@ -1,5 +1,6 @@
 import type { Env } from '../_lib/types';
 import { assertSameOrigin, getSession, jsonResponse } from '../_lib/auth';
+import { validReservation } from '../_lib/reservation';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (!env.DB) return jsonResponse({ error: 'DB未接続' }, 503);
@@ -43,23 +44,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const reserveDate = String(body.reserveDate || '');
   const startTime = String(body.startTime || '');
   const endTime = String(body.endTime || '');
-  const seatsCount = Number(body.seatsCount || 1);
+  const seatsCount = Number(body.seatsCount ?? 1);
 
-  const date = new Date(`${reserveDate}T00:00:00Z`);
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-  const validTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
-
-  if (
-    !spaceId ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(reserveDate) ||
-    !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== reserveDate || reserveDate < today ||
-    !validTime(startTime) ||
-    !validTime(endTime) ||
-    startTime >= endTime ||
-    !Number.isInteger(seatsCount) ||
-    seatsCount < 1 ||
-    seatsCount > 4
-  ) {
+  if (!spaceId || !validReservation(reserveDate, startTime, endTime, seatsCount)) {
     return jsonResponse({ error: '予約日時の入力値が不正です' }, 400);
   }
 
