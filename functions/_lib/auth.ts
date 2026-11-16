@@ -97,7 +97,7 @@ export async function getSession(request: Request, env: Env): Promise<SessionPay
     .filter(Boolean);
   return {
     ...payload,
-    role: adminSubs.includes(payload.sub) ? 'admin' : payload.role,
+    role: adminSubs.includes(payload.sub) ? 'admin' : 'user',
   };
 }
 

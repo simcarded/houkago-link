@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import type { Facility, RegionStat, Reservation, SearchFilters, UserSession } from './types';
-import { DEFAULT_FILTERS, INITIAL_DEMO_SPACES, INITIAL_REGION_STATS } from './data/demoData';
+import { DEFAULT_FILTERS, INITIAL_DEMO_RESERVATIONS, INITIAL_DEMO_SPACES, INITIAL_REGION_STATS } from './data/demoData';
 import {
   fetchFavorites,
   fetchRegions,
@@ -216,6 +216,11 @@ export function App() {
     setSimulatedSpaces([]);
     setFilters(DEFAULT_FILTERS);
     setBaseSpaces(INITIAL_DEMO_SPACES);
+    setReservations((current) => session.authenticated ? current.filter((r) => !r.isDemo) : INITIAL_DEMO_RESERVATIONS);
+    setFavoriteIds(['sp-sakae-civic']);
+    setSelectedSpace(null);
+    localStorage.removeItem('houkago_demo_reservations');
+    localStorage.removeItem('houkago_favorites');
   };
 
   if (loading) {
