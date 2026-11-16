@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { Facility, Reservation, UserSession } from '../types';
 import { SpaceIllustration } from './LiquidUI';
+import { todayInJapan } from '../lib/date';
 
 interface SpaceDetailModalProps {
   space: Facility | null;
@@ -44,7 +45,7 @@ export function SpaceDetailModal({
   onCreateReservation,
   allowDemoBooking = false,
 }: SpaceDetailModalProps) {
-  const [reserveDate, setReserveDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [reserveDate, setReserveDate] = useState(todayInJapan);
   const [startTime, setStartTime] = useState('16:30');
   const [endTime, setEndTime] = useState('18:30');
   const [seatsCount, setSeatsCount] = useState(1);

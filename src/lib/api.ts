@@ -72,7 +72,14 @@ export async function fetchReservations(): Promise<Reservation[]> {
     return data.reservations || [];
   } catch {
     const raw = localStorage.getItem('houkago_demo_reservations');
-    return raw ? (JSON.parse(raw) as Reservation[]) : INITIAL_DEMO_RESERVATIONS;
+    if (!raw) return INITIAL_DEMO_RESERVATIONS;
+    try {
+      const stored: unknown = JSON.parse(raw);
+      // Older versions could store authenticated reservations here. Never show those to a guest.
+      return Array.isArray(stored) ? stored.filter((item): item is Reservation => Boolean(item && typeof item.id === 'string' && item.id.startsWith('demo-'))) : [];
+    } catch {
+      return [];
+    }
   }
 }
 

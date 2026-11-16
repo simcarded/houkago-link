@@ -1,4 +1,5 @@
 import type { Facility, RegionStat, Reservation, SearchFilters } from '../types';
+import { todayInJapan } from '../lib/date';
 
 export const DEFAULT_FILTERS: SearchFilters = {
   query: '',
@@ -340,7 +341,7 @@ export const INITIAL_DEMO_RESERVATIONS: Reservation[] = [
     id: 'demo-res-1',
     spaceId: 'sp-sakae-civic',
     spaceName: '栄駅前 市民活動ルームB（デモ）',
-    reserveDate: new Date().toISOString().slice(0, 10),
+    reserveDate: todayInJapan(),
     startTime: '16:30',
     endTime: '18:30',
     seatsCount: 1,
