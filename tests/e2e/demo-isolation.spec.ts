@@ -24,6 +24,8 @@ test('ログイン中の発表モードはデモ予約のみを使う', async ({
   expect(savedToServer).toBe(0);
   await page.getByRole('button',{name:'閉じる'}).click();
   await page.getByRole('button',{name:/初期化/}).click();
+  await expect(page.getByRole('button',{name:'前へ'})).toBeDisabled();
   await page.getByRole('button',{name:/次へ/}).click();
+  await expect(page.getByRole('button',{name:'前へ'})).toBeEnabled();
   await expect(page.getByText('31席').first()).toBeVisible();
 });
