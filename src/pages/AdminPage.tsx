@@ -13,6 +13,8 @@ interface AdminPageProps {
 
 export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPageProps) {
   const [adminSpaces, setAdminSpaces] = useState<Facility[]>(spaces);
+  const [editing, setEditing] = useState<Facility | null>(null);
+  const [saving, setSaving] = useState(false);
   const [name, setName] = useState('');
   const [providerName, setProviderName] = useState('');
   const [regionId, setRegionId] = useState(regions[0]?.id || 'nagoya-center');
@@ -80,14 +82,33 @@ export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPa
   };
 
   const togglePublish = async (space: Facility) => {
-    await fetch(`/api/spaces/${space.id}`, {
+    const response = await fetch(`/api/spaces/${space.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
       body: JSON.stringify({ isPublished: !space.isPublished }),
     });
+    if (!response.ok) { setStatusMsg('公開状態を変更できませんでした。'); return; }
     await onRefreshSpaces();
     setAdminSpaces((await fetchSpaces(true)).spaces);
+  };
+
+  const saveEdit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editing) return;
+    setSaving(true); setStatusMsg('');
+    try {
+      const { name, providerName, address, notes, totalSeats, feeYen, openTime, closeTime, wifi, outlets, quiet, soloOk, groupOk, barrierFree } = editing;
+      const response = await fetch(`/api/spaces/${editing.id}`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'}, credentials:'same-origin',
+        body:JSON.stringify({ name, providerName, address, notes, totalSeats, feeYen, openTime, closeTime, wifi, outlets, quiet, soloOk, groupOk, barrierFree }),
+      });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error || '施設を更新できませんでした。');
+      setEditing(null); setStatusMsg('施設情報を更新しました。');
+      await onRefreshSpaces(); setAdminSpaces((await fetchSpaces(true)).spaces);
+    } catch (error) { setStatusMsg(error instanceof Error ? error.message : '施設を更新できませんでした。'); }
+    finally { setSaving(false); }
   };
 
   return (
@@ -146,7 +167,7 @@ export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPa
             <Plus className="h-4 w-4" /> 施設を追加
           </button>
         </form>
-        {statusMsg && <p className="text-xs text-emerald-700">{statusMsg}</p>}
+        {statusMsg && <p role="status" className="text-xs text-slate-700">{statusMsg}</p>}
       </GlassCard>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -155,6 +176,7 @@ export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPa
           {adminSpaces.map((s) => (
             <div key={s.id} className="flex items-center justify-between border-b border-slate-100 py-2">
               <span>{s.name}</span>
+              <div className="flex gap-2"><button type="button" onClick={() => { setStatusMsg(''); setEditing(s); }} className="rounded-lg border px-2.5 py-1 text-blue-700" aria-label={`${s.name}を編集`}>編集</button>
               <button
                 type="button"
                 onClick={() => togglePublish(s)}
@@ -164,6 +186,7 @@ export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPa
               >
                 {s.isPublished ? '公開中' : '非公開'}
               </button>
+              </div>
             </div>
           ))}
         </GlassCard>
@@ -177,6 +200,23 @@ export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPa
           ))}
         </GlassCard>
       </div>
+      {editing && <GlassCard className="p-5 space-y-3 text-xs">
+        <h2 className="text-sm font-bold">施設情報の編集</h2>
+        <form onSubmit={saveEdit} className="grid gap-3 sm:grid-cols-2">
+          <label>施設名<input required maxLength={80} value={editing.name} onChange={e => setEditing({...editing,name:e.target.value})} className="block w-full rounded border p-2" /></label>
+          <label>提供団体名<input required maxLength={80} value={editing.providerName} onChange={e => setEditing({...editing,providerName:e.target.value})} className="block w-full rounded border p-2" /></label>
+          <label>所在地<input required maxLength={120} value={editing.address} onChange={e => setEditing({...editing,address:e.target.value})} className="block w-full rounded border p-2" /></label>
+          <label>備考<input maxLength={200} value={editing.notes} onChange={e => setEditing({...editing,notes:e.target.value})} className="block w-full rounded border p-2" /></label>
+          <label>座席数<input required type="number" min={1} max={500} value={editing.totalSeats} onChange={e => setEditing({...editing,totalSeats:Number(e.target.value)})} className="block w-full rounded border p-2" /></label>
+          <label>料金（円）<input required type="number" min={0} max={2000} value={editing.feeYen} onChange={e => setEditing({...editing,feeYen:Number(e.target.value)})} className="block w-full rounded border p-2" /></label>
+          <label>開放開始<input required type="time" value={editing.openTime} onChange={e => setEditing({...editing,openTime:e.target.value})} className="block w-full rounded border p-2" /></label>
+          <label>開放終了<input required type="time" value={editing.closeTime} onChange={e => setEditing({...editing,closeTime:e.target.value})} className="block w-full rounded border p-2" /></label>
+          <fieldset className="sm:col-span-2 flex flex-wrap gap-3"><legend>設備・利用条件</legend>
+            {([['wifi','Wi-Fi'],['outlets','コンセント'],['quiet','静かな環境'],['soloOk','個人学習'],['groupOk','グループ学習'],['barrierFree','バリアフリー']] as const).map(([key,label]) => <label key={key} className="flex gap-1"><input type="checkbox" checked={editing[key]} onChange={e => setEditing({...editing,[key]:e.target.checked})} />{label}</label>)}
+          </fieldset>
+          <div className="sm:col-span-2 flex gap-2"><button disabled={saving} className="rounded bg-blue-600 px-4 py-2 text-white">施設の変更を保存</button><button type="button" onClick={() => setEditing(null)} className="rounded border px-4 py-2">編集をやめる</button></div>
+        </form>
+      </GlassCard>}
     </div>
   );
 }
