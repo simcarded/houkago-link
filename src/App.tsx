@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import type { Facility, RegionStat, Reservation, SearchFilters, UserSession } from './types';
 import { DEFAULT_FILTERS, INITIAL_DEMO_RESERVATIONS, INITIAL_DEMO_SPACES, INITIAL_REGION_STATS } from './data/demoData';
@@ -13,12 +13,12 @@ import { Navbar, type AppRoute } from './components/Navbar';
 import { ErrorRetryCard, FullPageSkeleton } from './components/LiquidUI';
 import { SpaceDetailModal } from './components/SpaceDetailModal';
 import { HomePage } from './pages/HomePage';
-import { ExplorePage } from './pages/ExplorePage';
-import { DisparityPage } from './pages/DisparityPage';
-import { SimulationPage } from './pages/SimulationPage';
-import { DemoPage } from './pages/DemoPage';
-import { MyPage } from './pages/MyPage';
-import { AdminPage } from './pages/AdminPage';
+const ExplorePage = lazy(() => import('./pages/ExplorePage').then((module) => ({ default: module.ExplorePage })));
+const DisparityPage = lazy(() => import('./pages/DisparityPage').then((module) => ({ default: module.DisparityPage })));
+const SimulationPage = lazy(() => import('./pages/SimulationPage').then((module) => ({ default: module.SimulationPage })));
+const DemoPage = lazy(() => import('./pages/DemoPage').then((module) => ({ default: module.DemoPage })));
+const MyPage = lazy(() => import('./pages/MyPage').then((module) => ({ default: module.MyPage })));
+const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })));
 
 function parseRoute(pathname: string): AppRoute {
   if (
@@ -259,7 +259,7 @@ export function App() {
           {loadError ? (
             <ErrorRetryCard message={loadError} onRetry={loadAll} />
           ) : (
-            <AnimatePresence mode="wait">
+            <Suspense fallback={<FullPageSkeleton />}><AnimatePresence mode="wait">
               <motion.div
                 key={route}
                 initial={{ opacity: 0, y: 8 }}
@@ -349,7 +349,7 @@ export function App() {
                   />
                 )}
               </motion.div>
-            </AnimatePresence>
+            </AnimatePresence></Suspense>
           )}
         </main>
 
