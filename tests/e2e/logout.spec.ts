@@ -27,3 +27,16 @@ test('旧バージョンが保存した実予約は未ログイン時に表示�
   await expect(page.getByText('旧個人予約')).toHaveCount(0);
   await expect(page.getByText('予約はありません。')).toBeVisible();
 });
+
+test('未ログイン時は認証必須の予約・お気に入りAPIを呼ばない', async ({page}) => {
+  const privateRequests: string[] = [];
+  await page.route('**/api/**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/api/reservations' || path === '/api/favorites') privateRequests.push(path);
+    if (path === '/api/auth/me') return route.fulfill({json:{authenticated:false,user:null}});
+    return route.fulfill({status:503,json:{}});
+  });
+  await page.goto('/mypage');
+  await expect(page.getByText(/未ログイン状態/)).toBeVisible();
+  expect(privateRequests).toEqual([]);
+});

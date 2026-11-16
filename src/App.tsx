@@ -52,12 +52,13 @@ export function App() {
   const loadAll = useCallback(async () => {
     setLoadError('');
     try {
+      const sessionRequest = fetchSession();
       const [sess, spRes, regRes, favs, resv] = await Promise.all([
-        fetchSession(),
+        sessionRequest,
         fetchSpaces(false),
         fetchRegions(),
-        fetchFavorites(),
-        fetchReservations(),
+        sessionRequest.then((current) => fetchFavorites(current.authenticated)),
+        sessionRequest.then((current) => fetchReservations(current.authenticated)),
       ]);
       setSession(sess);
       setBaseSpaces(spRes.spaces);

@@ -52,34 +52,46 @@ export async function fetchRegions(): Promise<{
   }
 }
 
-export async function fetchFavorites(): Promise<string[]> {
+function localFavorites(): string[] {
+  try {
+    const raw = localStorage.getItem('houkago_favorites');
+    if (!raw) return ['sp-sakae-civic'];
+    const stored: unknown = JSON.parse(raw);
+    return Array.isArray(stored) ? stored.filter((value): value is string => typeof value === 'string') : [];
+  } catch { return []; }
+}
+
+export async function fetchFavorites(authenticated = true): Promise<string[]> {
+  if (!authenticated) return localFavorites();
   try {
     const res = await fetch('/api/favorites', { credentials: 'same-origin' });
     if (!res.ok) throw new Error('fallback');
     const data = (await res.json()) as { favoriteIds: string[] };
     return data.favoriteIds || [];
   } catch {
-    const raw = localStorage.getItem('houkago_favorites');
-    return raw ? (JSON.parse(raw) as string[]) : ['sp-sakae-civic'];
+    return localFavorites();
   }
 }
 
-export async function fetchReservations(): Promise<Reservation[]> {
+function localReservations(): Reservation[] {
+  try {
+    const raw = localStorage.getItem('houkago_demo_reservations');
+    if (!raw) return INITIAL_DEMO_RESERVATIONS;
+    const stored: unknown = JSON.parse(raw);
+    // Older versions could store authenticated reservations here. Never show those to a guest.
+    return Array.isArray(stored) ? stored.filter((item): item is Reservation => Boolean(item && typeof item.id === 'string' && item.id.startsWith('demo-'))) : [];
+  } catch { return []; }
+}
+
+export async function fetchReservations(authenticated = true): Promise<Reservation[]> {
+  if (!authenticated) return localReservations();
   try {
     const res = await fetch('/api/reservations', { credentials: 'same-origin' });
     if (!res.ok) throw new Error('fallback');
     const data = (await res.json()) as { reservations: Reservation[] };
     return data.reservations || [];
   } catch {
-    const raw = localStorage.getItem('houkago_demo_reservations');
-    if (!raw) return INITIAL_DEMO_RESERVATIONS;
-    try {
-      const stored: unknown = JSON.parse(raw);
-      // Older versions could store authenticated reservations here. Never show those to a guest.
-      return Array.isArray(stored) ? stored.filter((item): item is Reservation => Boolean(item && typeof item.id === 'string' && item.id.startsWith('demo-'))) : [];
-    } catch {
-      return [];
-    }
+    return localReservations();
   }
 }
 
