@@ -14,7 +14,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
   return jsonResponse({
     ok: true,
     dbReady,
-    aiReady: Boolean(env.AI),
+    aiReady: false, // Inference is intentionally disabled until a safe usage limit is established.
     oauthConfigured: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.SESSION_SECRET),
   });
 };
