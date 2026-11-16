@@ -138,9 +138,9 @@ export function HomePage({
 
         <GlassCard interactive onClick={() => onNavigate('/explore')} className="p-5 flex items-center justify-between">
           <div>
-            <div className="text-xs font-medium text-indigo-700">Workers AI 連携</div>
-            <div className="text-base font-bold text-slate-900 mt-0.5">自然言語でスペース提案</div>
-            <div className="text-xs text-slate-600 mt-1">「静かでWi-Fiがある無料施設」等</div>
+            <div className="text-xs font-medium text-indigo-700">条件から検索</div>
+            <div className="text-base font-bold text-slate-900 mt-0.5">希望に合うスペースを探す</div>
+            <div className="text-xs text-slate-600 mt-1">「静かでWi-Fiがある無料施設」等の条件を入力</div>
           </div>
           <Sparkles className="h-7 w-7 text-indigo-600 shrink-0" />
         </GlassCard>
@@ -148,7 +148,7 @@ export function HomePage({
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">空席のある学習スペース（現在地・愛知県モデル）</h2>
+          <h2 className="text-lg font-bold text-slate-900">空席のある学習スペース（愛知県モデル）</h2>
           <button
             type="button"
             onClick={() => onNavigate('/explore')}
@@ -158,6 +158,7 @@ export function HomePage({
           </button>
         </div>
 
+        {availableSpaces.length === 0 && <p className="text-sm text-slate-600">現在、表示できる空席のある施設はありません。</p>}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {availableSpaces.slice(0, 6).map((space) => (
             <GlassCard

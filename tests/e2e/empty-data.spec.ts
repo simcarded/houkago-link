@@ -12,6 +12,7 @@ test('実データが空のときにデモ施設へ置き換えない', async ({
   });
   await page.goto('/');
   await expect(page.getByText('放課後の学習スペースを探す')).toBeVisible();
+  await expect(page.getByText('現在、表示できる空席のある施設はありません。')).toBeVisible();
   await expect(page.getByText('栄・市民学習ラウンジ')).toHaveCount(0);
   await page.goto('/simulation');
   await expect(page.getByText('企業・自治体の施設提供シミュレーション')).toBeVisible();

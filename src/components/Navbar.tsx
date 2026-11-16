@@ -54,7 +54,7 @@ export function Navbar({ currentRoute, onNavigate, session, dataSource }: Navbar
               <div className="text-[10px] text-slate-500 flex items-center gap-1.5">
                 <span>プロトタイプ</span>
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                <span>{dataSource === 'd1' ? 'D1接続' : 'ローカルデモ'}</span>
+                <span>{dataSource === 'd1' ? 'データ接続中' : 'データ取得不可・デモ表示'}</span>
               </div>
             </div>
           </button>

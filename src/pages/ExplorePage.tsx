@@ -123,7 +123,7 @@ export function ExplorePage({
             disabled={aiLoading}
             className="rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
           >
-            {aiLoading ? '解析中...' : 'AI条件検索'}
+            {aiLoading ? '解析中...' : '条件を読み取って検索'}
           </button>
         </form>
 
