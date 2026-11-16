@@ -1,0 +1,5 @@
+# ローカル検証時は .dev.vars にコピーして設定（GitHubには絶対にコミットしないこと）
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+SESSION_SECRET=replace-with-32-plus-char-random-secret
+ADMIN_GOOGLE_SUBS=

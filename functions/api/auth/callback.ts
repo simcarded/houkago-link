@@ -1,0 +1,105 @@
+import type { Env } from '../../_lib/types';
+import {
+  COOKIE_NAME,
+  OAUTH_STATE_COOKIE,
+  buildCookie,
+  parseCookies,
+  signToken,
+  verifyToken,
+} from '../../_lib/auth';
+
+interface OAuthStateToken {
+  state: string;
+  nonce: string;
+  exp: number;
+}
+
+interface GoogleTokenInfo {
+  sub: string;
+  aud: string;
+  nonce?: string;
+  name?: string;
+  given_name?: string;
+}
+
+export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET || !env.SESSION_SECRET) {
+    return Response.redirect(`${new URL(request.url).origin}/mypage?auth_error=config`, 302);
+  }
+  const url = new URL(request.url);
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+  const cookies = parseCookies(request.headers.get('Cookie'));
+  const rawStateCookie = cookies[OAUTH_STATE_COOKIE];
+
+  if (!code || !state || !rawStateCookie) {
+    return Response.redirect(`${url.origin}/mypage?auth_error=state`, 302);
+  }
+
+  const parsedState = await verifyToken<OAuthStateToken>(rawStateCookie, env.SESSION_SECRET);
+  if (!parsedState || parsedState.state !== state || parsedState.exp < Date.now()) {
+    return Response.redirect(`${url.origin}/mypage?auth_error=state_mismatch`, 302);
+  }
+
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      code,
+      client_id: env.GOOGLE_CLIENT_ID,
+      client_secret: env.GOOGLE_CLIENT_SECRET,
+      redirect_uri: `${url.origin}/api/auth/callback`,
+      grant_type: 'authorization_code',
+    }),
+  });
+
+  if (!tokenRes.ok) {
+    return Response.redirect(`${url.origin}/mypage?auth_error=token`, 302);
+  }
+
+  const tokenJson = (await tokenRes.json()) as { id_token?: string };
+  if (!tokenJson.id_token) {
+    return Response.redirect(`${url.origin}/mypage?auth_error=id_token`, 302);
+  }
+
+  const infoRes = await fetch(
+    `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(tokenJson.id_token)}`,
+  );
+  if (!infoRes.ok) {
+    return Response.redirect(`${url.origin}/mypage?auth_error=verify`, 302);
+  }
+
+  const info = (await infoRes.json()) as GoogleTokenInfo;
+  if (info.aud !== env.GOOGLE_CLIENT_ID || info.nonce !== parsedState.nonce || !info.sub) {
+    return Response.redirect(`${url.origin}/mypage?auth_error=aud_nonce`, 302);
+  }
+
+  const displayName = (info.given_name || info.name || '学習者').slice(0, 24);
+  const adminSubs = (env.ADMIN_GOOGLE_SUBS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const role: 'user' | 'admin' = adminSubs.includes(info.sub) ? 'admin' : 'user';
+
+  if (env.DB) {
+    await env.DB.prepare(
+      `INSERT INTO users (sub, display_name, role, updated_at) VALUES (?, ?, ?, datetime('now'))
+       ON CONFLICT(sub) DO UPDATE SET display_name = excluded.display_name, role = excluded.role, updated_at = datetime('now')`,
+    )
+      .bind(info.sub, displayName, role)
+      .run();
+  }
+
+  const sessionToken = await signToken(
+    { sub: info.sub, displayName, role, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 },
+    env.SESSION_SECRET,
+  );
+
+  const headers = new Headers({
+    Location: `${url.origin}/mypage`,
+    'Cache-Control': 'no-store',
+  });
+  headers.append('Set-Cookie', buildCookie(COOKIE_NAME, sessionToken, request.url, 7 * 24 * 60 * 60));
+  headers.append('Set-Cookie', buildCookie(OAUTH_STATE_COOKIE, '', request.url, 0));
+  return new Response(null, { status: 302, headers });
+};

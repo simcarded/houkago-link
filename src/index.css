@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Zen Kaku Gothic New', system-ui, -apple-system, sans-serif;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background:
+      radial-gradient(circle at 12% 8%, rgba(191, 219, 254, 0.55), transparent 42%),
+      radial-gradient(circle at 88% 15%, rgba(224, 242, 254, 0.65), transparent 40%),
+      radial-gradient(circle at 50% 95%, rgba(219, 234, 254, 0.45), transparent 45%),
+      #f5f8fc;
+    min-height: 100vh;
+    color: #0f172a;
+  }
+}
+
+.liquid-glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(22px) saturate(165%);
+  -webkit-backdrop-filter: blur(22px) saturate(165%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 12px 36px -14px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.liquid-glass-subtle {
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: 0 6px 20px -10px rgba(15, 23, 42, 0.08);
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer {
+    animation: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}

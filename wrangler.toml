@@ -1,0 +1,12 @@
+name = "houkago-link"
+compatibility_date = "2026-10-01"
+pages_build_output_dir = "./dist"
+
+[ai]
+binding = "AI"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "houkago-link-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+migrations_dir = "migrations"
