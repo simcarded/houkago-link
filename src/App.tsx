@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import type { Facility, RegionStat, Reservation, SearchFilters, UserSession } from './types';
 import { DEFAULT_FILTERS, INITIAL_DEMO_RESERVATIONS, INITIAL_DEMO_SPACES, INITIAL_REGION_STATS } from './data/demoData';
@@ -41,6 +41,7 @@ export function App() {
   const [dataSource, setDataSource] = useState<'d1' | 'demo-fallback'>('demo-fallback');
   const [session, setSession] = useState<UserSession>({ authenticated: false, user: null });
   const [baseSpaces, setBaseSpaces] = useState<Facility[]>(INITIAL_DEMO_SPACES);
+  const loadedSpaces = useRef<Facility[]>(INITIAL_DEMO_SPACES);
   const [simulatedSpaces, setSimulatedSpaces] = useState<Facility[]>([]);
   const [regions, setRegions] = useState<RegionStat[]>(INITIAL_REGION_STATS);
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -60,6 +61,7 @@ export function App() {
       ]);
       setSession(sess);
       setBaseSpaces(spRes.spaces);
+      loadedSpaces.current = spRes.spaces;
       setDataSource(spRes.source);
       setRegions(regRes.regions);
       setFavoriteIds(favs);
@@ -231,9 +233,9 @@ export function App() {
   const handleResetAllDemo = () => {
     setSimulatedSpaces([]);
     setFilters(DEFAULT_FILTERS);
-    setBaseSpaces(INITIAL_DEMO_SPACES);
+    setBaseSpaces(loadedSpaces.current);
     setReservations((current) => session.authenticated ? current.filter((r) => !r.isDemo) : INITIAL_DEMO_RESERVATIONS);
-    setFavoriteIds(['sp-sakae-civic']);
+    if (!session.authenticated) setFavoriteIds(['sp-sakae-civic']);
     setSelectedSpace(null);
     localStorage.removeItem('houkago_demo_reservations');
     localStorage.removeItem('houkago_favorites');
@@ -363,7 +365,8 @@ export function App() {
           onToggleFavorite={handleToggleFavorite}
           session={session}
           onCreateReservation={handleCreateReservation}
-          allowDemoBooking={route === '/demo' || dataSource === 'demo-fallback'}
+          allowDemoBooking={route === '/demo' || dataSource === 'demo-fallback' || Boolean(selectedSpace?.isSimulation)}
+          demoOnly={route === '/demo' || Boolean(selectedSpace?.isSimulation)}
         />
       </div>
     </MotionConfig>

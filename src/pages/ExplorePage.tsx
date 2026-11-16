@@ -134,7 +134,7 @@ export function ExplorePage({
               {aiResult.mode === 'workers-ai'
                 ? 'Workers AI 稼働'
                 : aiResult.mode === 'rule-fallback'
-                  ? 'ルールベース代替'
+                  ? 'ルールベース代替（AI未実行）'
                   : 'オフライン代替（AI未実行）'}
             </span>
           </div>

@@ -34,6 +34,7 @@ interface SpaceDetailModalProps {
     demoOverride?: boolean;
   }) => Promise<{ ok: boolean; error?: string; reservation?: Reservation }>;
   allowDemoBooking?: boolean;
+  demoOnly?: boolean;
 }
 
 export function SpaceDetailModal({
@@ -44,6 +45,7 @@ export function SpaceDetailModal({
   session,
   onCreateReservation,
   allowDemoBooking = false,
+  demoOnly = false,
 }: SpaceDetailModalProps) {
   const [reserveDate, setReserveDate] = useState(todayInJapan);
   const [startTime, setStartTime] = useState('16:30');
@@ -155,7 +157,7 @@ export function SpaceDetailModal({
               </div>
             </div>
             <div className="liquid-glass-subtle rounded-2xl p-3">
-              <div className="text-slate-500">空席 / 総座席</div>
+              <div className="text-slate-500">現在の空席 / 総座席</div>
               <div className="text-base font-bold text-blue-700 mt-0.5">
                 {space.availableSeats} / {space.totalSeats}席
               </div>
@@ -308,7 +310,7 @@ export function SpaceDetailModal({
 
               <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                 <span className="text-[11px] text-slate-500">
-                  ※実用化時は施設管理者による安全管理・入退室確認が必要です。
+                  ※選択日時の空席は予約時に確認します。実用化時は安全管理・入退室確認が必要です。
                 </span>
                 <div className="flex flex-wrap gap-2">
                   {allowDemoBooking && (
@@ -321,10 +323,10 @@ export function SpaceDetailModal({
                       デモ予約を確定（発表用）
                     </button>
                   )}
-                  {session.authenticated ? (
+                  {!demoOnly && (session.authenticated ? (
                     <button
                       type="button"
-                      disabled={submitting || space.availableSeats < seatsCount}
+                      disabled={submitting}
                       onClick={() => handleBook(false)}
                       className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                     >
@@ -337,7 +339,7 @@ export function SpaceDetailModal({
                     >
                       Googleでログインして予約保存
                     </a>
-                  )}
+                  ))}
                 </div>
               </div>
             </div>
