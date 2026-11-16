@@ -31,8 +31,12 @@ export function MyPage({
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const favoriteSpaces = spaces.filter((s) => favoriteIds.includes(s.id));
-  const upcoming = reservations.filter((r) => r.status !== 'cancelled');
-  const history = reservations.filter((r) => r.status === 'cancelled');
+  const now = Date.now();
+  const hasEnded = (reservation: Reservation) => new Date(`${reservation.reserveDate}T${reservation.endTime}:00+09:00`).getTime() <= now;
+  const upcoming = reservations.filter((r) => r.status !== 'cancelled' && !hasEnded(r))
+    .sort((a, b) => `${a.reserveDate} ${a.startTime}`.localeCompare(`${b.reserveDate} ${b.startTime}`));
+  const history = reservations.filter((r) => r.status === 'cancelled' || hasEnded(r))
+    .sort((a, b) => `${b.reserveDate} ${b.startTime}`.localeCompare(`${a.reserveDate} ${a.startTime}`));
 
   return (
     <div className="space-y-5">
@@ -185,10 +189,10 @@ export function MyPage({
 
           {history.length > 0 && (
             <div className="pt-2 border-t border-slate-200/70">
-              <div className="text-xs font-medium text-slate-500 mb-1.5">キャンセル済み履歴</div>
-              {history.slice(0, 3).map((h) => (
+              <div className="text-xs font-medium text-slate-500 mb-1.5">予約履歴</div>
+              {history.map((h) => (
                 <div key={h.id} className="text-[11px] text-slate-500">
-                  {h.reserveDate} {h.spaceName}（取消）
+                  {h.reserveDate} {h.startTime}〜{h.endTime} {h.spaceName}（{h.status === 'cancelled' ? '取消' : h.status === 'checked_in' ? 'チェックイン済' : '終了'}）
                 </div>
               ))}
             </div>
