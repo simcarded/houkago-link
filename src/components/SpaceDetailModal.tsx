@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Accessibility,
@@ -51,6 +51,12 @@ export function SpaceDetailModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [completed, setCompleted] = useState<Reservation | null>(null);
+
+  useEffect(() => {
+    setCompleted(null);
+    setError('');
+    setSubmitting(false);
+  }, [space?.id]);
 
   if (!space) return null;
 
