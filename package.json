@@ -15,6 +15,7 @@
     "cf:deploy": "npm run build && npx wrangler pages deploy dist --project-name=houkago-link"
   },
   "dependencies": {
+    "jose": "^6.2.17",
     "lucide-react": "^1.73.0",
     "maplibre-gl": "^6.18.0",
     "motion": "^14.14.0",

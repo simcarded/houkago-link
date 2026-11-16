@@ -1,4 +1,5 @@
 import type { Env } from '../../_lib/types';
+import { verifyGoogleIdToken } from '../../_lib/google-id-token';
 import {
   COOKIE_NAME,
   OAUTH_STATE_COOKIE,
@@ -12,14 +13,6 @@ interface OAuthStateToken {
   state: string;
   nonce: string;
   exp: number;
-}
-
-interface GoogleTokenInfo {
-  sub: string;
-  aud: string;
-  nonce?: string;
-  name?: string;
-  given_name?: string;
 }
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
@@ -62,19 +55,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     return Response.redirect(`${url.origin}/mypage?auth_error=id_token`, 302);
   }
 
-  const infoRes = await fetch(
-    `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(tokenJson.id_token)}`,
-  );
-  if (!infoRes.ok) {
+  let info;
+  try {
+    info = await verifyGoogleIdToken(tokenJson.id_token, env.GOOGLE_CLIENT_ID, parsedState.nonce);
+  } catch {
     return Response.redirect(`${url.origin}/mypage?auth_error=verify`, 302);
   }
 
-  const info = (await infoRes.json()) as GoogleTokenInfo;
-  if (info.aud !== env.GOOGLE_CLIENT_ID || info.nonce !== parsedState.nonce || !info.sub) {
-    return Response.redirect(`${url.origin}/mypage?auth_error=aud_nonce`, 302);
-  }
-
-  const displayName = (info.given_name || info.name || '学習者').slice(0, 24);
+  const displayName = (typeof info.given_name === 'string' ? info.given_name : typeof info.name === 'string' ? info.name : '学習者').slice(0, 24);
   const adminSubs = (env.ADMIN_GOOGLE_SUBS || '')
     .split(',')
     .map((s) => s.trim())
