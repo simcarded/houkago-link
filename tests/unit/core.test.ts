@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_FILTERS, INITIAL_DEMO_SPACES, INITIAL_REGION_STATS } from '../../src/data/demoData';
 import { computeRegionMetrics, filterSpaces } from '../../src/lib/disparity';
-import { offlineNaturalSearch } from '../../src/lib/api';
+import { offlineNaturalSearch, requestAiRecommend } from '../../src/lib/api';
 
 describe('施設検索フィルター', () => {
   it('無料かつWi-Fiありで絞り込める', () => {
@@ -37,5 +37,14 @@ describe('AIオフライン代替パーサー', () => {
     expect(parsed.criteria.maxFee).toBe(0);
     expect(parsed.criteria.quiet).toBe(true);
     expect(parsed.criteria.wifi).toBe(true);
+  });
+  it('端末内で条件を解析し、ネットワークへ送信しない', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    try {
+      const result = await requestAiRecommend('知多で３人、充電できる場所');
+      expect(result.criteria).toMatchObject({ regionHint: '知多', groupOk: true, outlets: true });
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(offlineNaturalSearch('一人で勉強').criteria.groupOk).toBe(false);
+    } finally { fetchSpy.mockRestore(); }
   });
 });

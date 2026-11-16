@@ -98,36 +98,26 @@ export async function fetchReservations(authenticated = true): Promise<Reservati
 }
 
 export function offlineNaturalSearch(query: string): AiRecommendationResult {
-  const q = query.toLowerCase();
+  const q = query.normalize('NFKC').toLowerCase();
   return {
     mode: 'offline-demo',
     model: null,
     criteria: {
-      maxFee: q.includes('無料') || q.includes('0円') ? 0 : q.includes('100円') ? 100 : null,
-      wifi: q.includes('wi-fi') || q.includes('wifi'),
-      outlets: q.includes('コンセント') || q.includes('電源'),
+      maxFee: q.includes('無料') || q.includes('0円') || q.includes('ただ') ? 0 : q.includes('100円') ? 100 : null,
+      wifi: q.includes('wi-fi') || q.includes('wifi') || q.includes('ネット'),
+      outlets: q.includes('コンセント') || q.includes('電源') || q.includes('充電'),
       quiet: q.includes('静か') || q.includes('集中'),
-      groupOk: q.includes('友達') || q.includes('グループ') || q.includes('人'),
-      openEvening: q.includes('夕方') || q.includes('夜') || q.includes('遅く'),
+      groupOk: q.includes('友達') || q.includes('グループ') || /[2-9]人/.test(q) || q.includes('相談'),
+      openEvening: q.includes('夕方') || q.includes('夜') || q.includes('遅く') || q.includes('20時'),
       regionHint:
-        ['名古屋', '栄', '名駅', '天白', '一宮', '春日井', '岡崎', '豊橋', '半田'].find((k) =>
+        ['名古屋', '栄', '名駅', '天白', '一宮', '春日井', '岡崎', '豊橋', '半田', '三河', '知多', '尾張'].find((k) =>
           q.includes(k),
         ) || '',
     },
-    summary: '【オフライン代替デモ（AI未実行）】ローカル条件抽出で候補を絞り込みました。',
+    summary: '入力されたキーワードを端末内で読み取り、条件に合う施設を表示します。',
   };
 }
 
 export async function requestAiRecommend(query: string): Promise<AiRecommendationResult> {
-  try {
-    const res = await fetch('/api/ai/recommend', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query }),
-    });
-    if (!res.ok) throw new Error('AI API unavailable');
-    return (await res.json()) as AiRecommendationResult;
-  } catch {
-    return offlineNaturalSearch(query);
-  }
+  return offlineNaturalSearch(query);
 }
