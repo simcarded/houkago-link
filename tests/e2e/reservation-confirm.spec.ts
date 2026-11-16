@@ -27,3 +27,32 @@ test('保存予約は内容を確認するまで送信しない', async ({ page 
   await expect(page.getByText('予約を登録しました（プロトタイプ）')).toBeVisible();
   expect(posts).toBe(1);
 });
+
+test('閉じた施設の遅い空席応答を別の施設に表示しない', async ({ page }) => {
+  const [first, second] = INITIAL_DEMO_SPACES;
+  let releaseFirst!: () => void;
+  const firstPending = new Promise<void>((resolve) => { releaseFirst = resolve; });
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/api/auth/me') return route.fulfill({json:{authenticated:true,user:{sub:'test',displayName:'Test',isAdmin:false}}});
+    if (url.pathname === '/api/spaces') return route.fulfill({json:{spaces:[first,second]}});
+    if (url.pathname === '/api/disparity') return route.fulfill({json:{regions:INITIAL_REGION_STATS}});
+    if (url.pathname === '/api/favorites') return route.fulfill({json:{favoriteIds:[]}});
+    if (url.pathname === '/api/reservations') return route.fulfill({json:{reservations:[]}});
+    if (url.pathname === '/api/availability') {
+      if (url.searchParams.get('spaceId') === first.id) { await firstPending; return route.fulfill({json:{availableSeats:0}}).catch(() => {}); }
+      return route.fulfill({json:{availableSeats:3}});
+    }
+    return route.fulfill({status:404,json:{}});
+  });
+  await page.goto('/');
+  await page.getByRole('heading',{name:first.name}).click();
+  await page.getByRole('button',{name:'予約内容を確認',exact:true}).click();
+  await expect(page.getByText('選択日時の空席を確認中…')).toBeVisible();
+  await page.getByRole('button',{name:'閉じる'}).click();
+  await page.getByRole('heading',{name:second.name}).click();
+  await page.getByRole('button',{name:'予約内容を確認',exact:true}).click();
+  await expect(page.getByText(/選択日時の空席: 3席/)).toBeVisible();
+  releaseFirst();
+  await expect(page.getByText(/選択日時の空席: 3席/)).toBeVisible();
+});

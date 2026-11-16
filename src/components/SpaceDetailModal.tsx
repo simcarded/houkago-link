@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Accessibility,
@@ -59,6 +59,7 @@ export function SpaceDetailModal({
   const [availableForSlot, setAvailableForSlot] = useState<number | null>(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [completed, setCompleted] = useState<Reservation | null>(null);
+  const availabilityRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setCompleted(null);
@@ -66,6 +67,9 @@ export function SpaceDetailModal({
     setFavoriteError('');
     setBookingMode(null);
     setSubmitting(false);
+    setCheckingAvailability(false);
+    setAvailableForSlot(null);
+    return () => { availabilityRequest.current?.abort(); };
   }, [space?.id]);
 
   if (!space) return null;
@@ -75,17 +79,19 @@ export function SpaceDetailModal({
     setAvailableForSlot(null);
     setBookingMode(mode);
     if (mode === 'demo') return;
+    const controller = new AbortController();
+    availabilityRequest.current = controller;
     setCheckingAvailability(true);
     try {
       const params = new URLSearchParams({ spaceId: space.id, reserveDate, startTime, endTime });
-      const response = await fetch(`/api/availability?${params}`, { credentials: 'same-origin' });
+      const response = await fetch(`/api/availability?${params}`, { credentials: 'same-origin', signal: controller.signal });
       const data = await response.json() as { availableSeats?: number; error?: string };
       if (!response.ok || typeof data.availableSeats !== 'number') throw new Error(data.error || '空席を確認できませんでした。');
-      setAvailableForSlot(data.availableSeats);
+      if (!controller.signal.aborted) setAvailableForSlot(data.availableSeats);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '空席を確認できませんでした。');
+      if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : '空席を確認できませんでした。');
     } finally {
-      setCheckingAvailability(false);
+      if (!controller.signal.aborted) setCheckingAvailability(false);
     }
   };
 
