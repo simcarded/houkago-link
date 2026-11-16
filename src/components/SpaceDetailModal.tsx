@@ -346,12 +346,15 @@ export function SpaceDetailModal({
                       {submitting ? '予約処理中...' : '予約を確定する'}
                     </button>
                   ) : (
-                    <a
-                      href="/api/auth/login"
-                      className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700"
-                    >
-                      Googleでログインして予約保存
-                    </a>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <a href="/mypage" className="text-xs text-blue-700 underline">データの扱い</a>
+                      <a
+                        href="/api/auth/login"
+                        className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700"
+                      >
+                        Googleでログインして予約保存
+                      </a>
+                    </div>
                   ))}
                 </div>
               </div>

@@ -64,6 +64,13 @@ export function MyPage({
         )}
       </GlassCard>
 
+      <section id="data-notice" aria-labelledby="data-notice-title" className="rounded-2xl border border-slate-200 bg-white/80 p-4 text-xs leading-relaxed text-slate-700">
+        <h2 id="data-notice-title" className="mb-1 font-bold text-slate-900">このプロトタイプでのデータの扱い</h2>
+        <p>Googleログイン時は、Googleの識別子と表示名、保存した予約・お気に入りをデータベースに保存します。Googleのパスワードは保存しません。</p>
+        <p className="mt-1">保存期間の自動制限とアカウント削除機能はまだありません。ログアウトしてもデータベース内の情報は削除されません。デモ予約・お気に入りはブラウザに保存されます。</p>
+        <p className="mt-1">お問い合わせ: <a className="text-blue-700 underline" href="mailto:ka.kunstudio.3010@gmail.com">ka.kunstudio.3010@gmail.com</a></p>
+      </section>
+
       {new URLSearchParams(window.location.search).has('auth_error') && (
         <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           Googleログインは現在利用できません。発表用のデモ予約はプレゼンモードで利用できます。
