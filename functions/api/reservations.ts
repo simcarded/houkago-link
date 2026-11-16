@@ -45,11 +45,16 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const endTime = String(body.endTime || '');
   const seatsCount = Number(body.seatsCount || 1);
 
+  const date = new Date(`${reserveDate}T00:00:00Z`);
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const validTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+
   if (
     !spaceId ||
     !/^\d{4}-\d{2}-\d{2}$/.test(reserveDate) ||
-    !/^\d{2}:\d{2}$/.test(startTime) ||
-    !/^\d{2}:\d{2}$/.test(endTime) ||
+    !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== reserveDate || reserveDate < today ||
+    !validTime(startTime) ||
+    !validTime(endTime) ||
     startTime >= endTime ||
     !Number.isInteger(seatsCount) ||
     seatsCount < 1 ||
@@ -88,6 +93,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       endTime,
       seatsCount,
       spaceId,
+      startTime,
+      endTime,
       session.sub,
       reserveDate,
       startTime,
