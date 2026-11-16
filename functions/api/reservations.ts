@@ -62,14 +62,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
          WHERE user_sub = ? AND reserve_date = ? AND status IN ('confirmed', 'checked_in')
            AND NOT (end_time <= ? OR start_time >= ?)
        )
-       AND (
-         (SELECT total_seats FROM spaces WHERE id = ?) -
-         COALESCE((
-           SELECT SUM(seats_count) FROM reservations
+       AND NOT EXISTS (
+         SELECT 1 FROM (
+           SELECT ? AS point
+           UNION SELECT start_time FROM reservations
            WHERE space_id = ? AND reserve_date = ? AND status IN ('confirmed', 'checked_in')
-             AND NOT (end_time <= ? OR start_time >= ?)
-         ), 0)
-       ) >= ?`,
+             AND start_time > ? AND start_time < ?
+         ) points
+         WHERE COALESCE((SELECT SUM(seats_count) FROM reservations
+           WHERE space_id = ? AND reserve_date = ? AND status IN ('confirmed', 'checked_in')
+             AND start_time <= points.point AND end_time > points.point), 0) + ?
+           > (SELECT total_seats FROM spaces WHERE id = ?)
+       )`,
   )
     .bind(
       id,
@@ -86,12 +90,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       reserveDate,
       startTime,
       endTime,
-      spaceId,
+      startTime,
       spaceId,
       reserveDate,
       startTime,
       endTime,
+      spaceId,
+      reserveDate,
       seatsCount,
+      spaceId,
     )
     .run();
 

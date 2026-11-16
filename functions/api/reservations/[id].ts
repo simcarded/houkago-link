@@ -29,12 +29,17 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
         AND NOT EXISTS (SELECT 1 FROM reservations other WHERE other.id != r.id AND other.user_sub = r.user_sub
           AND other.reserve_date = ? AND other.status IN ('confirmed', 'checked_in')
           AND NOT (other.end_time <= ? OR other.start_time >= ?))
-        AND (SELECT s.total_seats FROM spaces s WHERE s.id = r.space_id) - COALESCE(
-          (SELECT SUM(other.seats_count) FROM reservations other WHERE other.id != r.id AND other.space_id = r.space_id
+        AND NOT EXISTS (SELECT 1 FROM (
+          SELECT ? AS point
+          UNION SELECT other.start_time FROM reservations other WHERE other.id != r.id AND other.space_id = r.space_id
             AND other.reserve_date = ? AND other.status IN ('confirmed', 'checked_in')
-            AND NOT (other.end_time <= ? OR other.start_time >= ?)), 0) >= ?`)
+            AND other.start_time > ? AND other.start_time < ?
+        ) points WHERE COALESCE((SELECT SUM(other.seats_count) FROM reservations other
+          WHERE other.id != r.id AND other.space_id = r.space_id AND other.reserve_date = ?
+            AND other.status IN ('confirmed', 'checked_in') AND other.start_time <= points.point
+            AND other.end_time > points.point), 0) + ? > (SELECT s.total_seats FROM spaces s WHERE s.id = r.space_id))`)
       .bind(reserveDate, startTime, endTime, seatsCount, id, session.sub, startTime, endTime,
-        reserveDate, startTime, endTime, reserveDate, startTime, endTime, seatsCount).run();
+        reserveDate, startTime, endTime, startTime, reserveDate, startTime, endTime, reserveDate, seatsCount).run();
     if (result.meta.changes !== 1) return jsonResponse({ error: '変更できませんでした。予約状況と営業時間をご確認ください。' }, 409);
     return jsonResponse({ ok: true });
   }
