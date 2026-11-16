@@ -15,8 +15,8 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   if (status === 'cancelled' || status === 'checked_in') {
     const query =
       session.role === 'admin'
-        ? `UPDATE reservations SET status = ? WHERE id = ?`
-        : `UPDATE reservations SET status = ? WHERE id = ? AND user_sub = ?`;
+        ? `UPDATE reservations SET status = ? WHERE id = ? AND status = 'confirmed'`
+        : `UPDATE reservations SET status = ? WHERE id = ? AND user_sub = ? AND status = 'confirmed'`;
     const stmt =
       session.role === 'admin'
         ? env.DB.prepare(query).bind(status, id)
