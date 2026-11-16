@@ -30,7 +30,7 @@ export async function fetchSpaces(includeUnpublished = false): Promise<{
     const res = await fetch(url, { credentials: 'same-origin' });
     if (!res.ok) throw new Error('API unavailable');
     const data = (await res.json()) as { spaces: Facility[] };
-    if (!Array.isArray(data.spaces) || data.spaces.length === 0) throw new Error('Empty');
+    if (!Array.isArray(data.spaces)) throw new Error('Invalid spaces response');
     return { spaces: data.spaces, source: 'd1' };
   } catch {
     return { spaces: INITIAL_DEMO_SPACES, source: 'demo-fallback' };
@@ -45,7 +45,7 @@ export async function fetchRegions(): Promise<{
     const res = await fetch('/api/disparity');
     if (!res.ok) throw new Error('API unavailable');
     const data = (await res.json()) as { regions: RegionStat[] };
-    if (!Array.isArray(data.regions) || data.regions.length === 0) throw new Error('Empty');
+    if (!Array.isArray(data.regions)) throw new Error('Invalid regions response');
     return { regions: data.regions, source: 'd1' };
   } catch {
     return { regions: INITIAL_REGION_STATS, source: 'demo-fallback' };
