@@ -36,19 +36,22 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const includeUnpublished = url.searchParams.get('includeUnpublished') === '1';
   const session = includeUnpublished ? await getSession(request, env) : null;
   const allowAll = includeUnpublished && session?.role === 'admin';
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+  const time = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(now);
 
   const sql = `
     SELECT s.*,
       COALESCE((
         SELECT SUM(r.seats_count) FROM reservations r
         WHERE r.space_id = s.id AND r.reserve_date = ? AND r.status IN ('confirmed', 'checked_in')
+          AND r.start_time <= ? AND r.end_time > ?
       ), 0) AS booked_seats
     FROM spaces s
     ${allowAll ? '' : 'WHERE s.is_published = 1'}
     ORDER BY s.created_at ASC
   `;
-  const { results } = await env.DB.prepare(sql).bind(today).all<SpaceRow>();
+  const { results } = await env.DB.prepare(sql).bind(today, time, time).all<SpaceRow>();
 
   const spaces = (results || []).map((row) => ({
     id: row.id,
