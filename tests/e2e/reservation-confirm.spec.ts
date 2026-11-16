@@ -12,6 +12,7 @@ test('保存予約は内容を確認するまで送信しない', async ({ page 
     if (path === '/api/spaces') return route.fulfill({ json: { spaces:[space] } });
     if (path === '/api/disparity') return route.fulfill({ json: { regions:INITIAL_REGION_STATS } });
     if (path === '/api/favorites') return route.fulfill({ json: { favoriteIds:[] } });
+    if (path === '/api/availability') return route.fulfill({ json: { availableSeats:3 } });
     if (path === '/api/reservations' && route.request().method() === 'GET') return route.fulfill({ json: { reservations:[] } });
     if (path === '/api/reservations') { posts++; return route.fulfill({ status:201, json:{ok:true,id:'res-test'} }); }
     return route.fulfill({ status:404, json:{} });
@@ -20,6 +21,7 @@ test('保存予約は内容を確認するまで送信しない', async ({ page 
   await page.getByRole('heading', { name:space.name }).click();
   await page.getByRole('button', { name:'予約内容を確認', exact:true }).click();
   await expect(page.getByRole('heading', { name:'予約内容の確認', exact:true })).toBeVisible();
+  await expect(page.getByText(/選択日時の空席: 3席/)).toBeVisible();
   expect(posts).toBe(0);
   await page.getByRole('button', { name:'この内容で確定' }).click();
   await expect(page.getByText('予約を登録しました（プロトタイプ）')).toBeVisible();
