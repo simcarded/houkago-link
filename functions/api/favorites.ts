@@ -2,9 +2,9 @@ import type { Env } from '../_lib/types';
 import { assertSameOrigin, getSession, jsonResponse } from '../_lib/auth';
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
-  if (!env.DB) return jsonResponse({ favoriteIds: [] });
+  if (!env.DB) return jsonResponse({ error: 'DB未接続' }, 503);
   const session = await getSession(request, env);
-  if (!session) return jsonResponse({ favoriteIds: [] });
+  if (!session) return jsonResponse({ error: '認証が必要です' }, 401);
 
   const { results } = await env.DB.prepare('SELECT space_id FROM favorites WHERE user_sub = ?')
     .bind(session.sub)

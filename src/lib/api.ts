@@ -65,11 +65,12 @@ export async function fetchFavorites(authenticated = true): Promise<string[]> {
   if (!authenticated) return localFavorites();
   try {
     const res = await fetch('/api/favorites', { credentials: 'same-origin' });
-    if (!res.ok) throw new Error('fallback');
+    if (!res.ok) throw new Error('favorites unavailable');
     const data = (await res.json()) as { favoriteIds: string[] };
-    return data.favoriteIds || [];
+    if (!Array.isArray(data.favoriteIds)) throw new Error('invalid favorites');
+    return data.favoriteIds;
   } catch {
-    return localFavorites();
+    throw new Error('お気に入りを読み込めませんでした。通信状態を確認して再試行してください。');
   }
 }
 
@@ -87,11 +88,12 @@ export async function fetchReservations(authenticated = true): Promise<Reservati
   if (!authenticated) return localReservations();
   try {
     const res = await fetch('/api/reservations', { credentials: 'same-origin' });
-    if (!res.ok) throw new Error('fallback');
+    if (!res.ok) throw new Error('reservations unavailable');
     const data = (await res.json()) as { reservations: Reservation[] };
-    return data.reservations || [];
+    if (!Array.isArray(data.reservations)) throw new Error('invalid reservations');
+    return data.reservations;
   } catch {
-    return localReservations();
+    throw new Error('予約を読み込めませんでした。通信状態を確認して再試行してください。');
   }
 }
 

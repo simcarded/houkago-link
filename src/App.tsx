@@ -67,8 +67,8 @@ export function App() {
       setRegions(regRes.regions);
       setFavoriteIds(favs);
       setReservations(resv);
-    } catch {
-      setLoadError('データの初期化に失敗しました。');
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'データの初期化に失敗しました。');
     } finally {
       setTimeout(() => setLoading(false), 320);
     }
