@@ -64,7 +64,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const result = await env.DB.prepare(
     `INSERT INTO reservations (id, space_id, user_sub, reserve_date, start_time, end_time, seats_count, status)
      SELECT ?, ?, ?, ?, ?, ?, ?, 'confirmed'
-     WHERE EXISTS (SELECT 1 FROM spaces WHERE id = ? AND is_published = 1)
+     WHERE EXISTS (SELECT 1 FROM spaces WHERE id = ? AND is_published = 1 AND open_time <= ? AND close_time >= ?)
        AND NOT EXISTS (
          SELECT 1 FROM reservations
          WHERE user_sub = ? AND reserve_date = ? AND status IN ('confirmed', 'checked_in')
