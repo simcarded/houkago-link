@@ -6,8 +6,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const session = await getSession(request, env);
   if (!session) return jsonResponse({ error: '認証が必要です' }, 401);
 
-  const { results } = await env.DB.prepare('SELECT space_id FROM favorites WHERE user_sub = ?')
-    .bind(session.sub)
+  const { results } = await env.DB.prepare('SELECT space_id FROM favorites WHERE user_sub = ? AND EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?)')
+    .bind(session.sub, session.sub, session.sessionVersion ?? null)
     .all<{ space_id: string }>();
   return jsonResponse({ favoriteIds: (results || []).map((r) => r.space_id) });
 };
@@ -26,8 +26,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       .bind(session.sub, body.spaceId, session.sub, session.sessionVersion ?? null)
       .run();
   } else {
-    await env.DB.prepare('DELETE FROM favorites WHERE user_sub = ? AND space_id = ?')
-      .bind(session.sub, body.spaceId)
+    await env.DB.prepare('DELETE FROM favorites WHERE user_sub = ? AND space_id = ? AND EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?)')
+      .bind(session.sub, body.spaceId, session.sub, session.sessionVersion ?? null)
       .run();
   }
   return jsonResponse({ ok: true });

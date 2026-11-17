@@ -4,8 +4,33 @@ import { readFileSync } from 'node:fs';
 import { onRequestDelete } from '../../functions/api/account';
 import { getSession, signToken } from '../../functions/_lib/auth';
 import { onRequestPost as createReservation } from '../../functions/api/reservations';
+import { onRequestGet as getFavorites, onRequestPost as updateFavorites } from '../../functions/api/favorites';
 
 describe('account deletion', () => {
+  it('does not read or change favorites after the session version changes mid-request', async () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec(readFileSync('migrations/0001_init.sql', 'utf8'));
+    db.exec(readFileSync('migrations/0003_session_version.sql', 'utf8'));
+    db.exec(`INSERT INTO users (sub,display_name,session_version) VALUES ('u','user','old');
+      INSERT INTO spaces (id,name,provider_type,provider_name,region_id,region_name,address,lat,lng,open_time,close_time,total_seats) VALUES ('s','demo','community','demo','r','r','demo',0,0,'15:00','21:00',3);
+      INSERT INTO favorites (user_sub,space_id) VALUES ('u','s')`);
+    const adapter = {prepare:(sql:string) => ({bind:(...args:unknown[]) => ({
+      first: async () => { const result = db.prepare(sql).get(...args as never[]) ?? null; db.exec("UPDATE users SET session_version='new' WHERE sub='u'"); return result; },
+      all: async () => ({results:db.prepare(sql).all(...args as never[])}),
+      run: async () => ({meta:{changes:Number(db.prepare(sql).run(...args as never[]).changes)}}),
+    })})};
+    const secret='a-long-test-secret-that-is-not-a-real-secret';
+    const token=await signToken({sub:'u',displayName:'user',role:'user',sessionVersion:'old',exp:Date.now()+60000},secret);
+    const headers={Cookie:`houkago_session=${token}`,Origin:'https://example.test','Content-Type':'application/json'};
+    const env={DB:adapter,SESSION_SECRET:secret};
+    const get = await getFavorites({request:new Request('https://example.test/api/favorites',{headers}),env} as never);
+    expect(await get.json()).toEqual({favoriteIds:[]});
+    db.exec("UPDATE users SET session_version='old' WHERE sub='u'");
+    const post = new Request('https://example.test/api/favorites',{method:'POST',headers,body:JSON.stringify({spaceId:'s',favorite:false})});
+    await updateFavorites({request:post,env} as never);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM favorites').get()?.count).toBe(1);
+    db.close();
+  });
   it('does not recreate a reservation if deletion happens after session verification', async () => {
     const db = new DatabaseSync(':memory:');
     db.exec(readFileSync('migrations/0001_init.sql', 'utf8'));

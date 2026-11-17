@@ -11,10 +11,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const allForAdmin = url.searchParams.get('scope') === 'admin' && session.role === 'admin';
 
   const sql = allForAdmin
-    ? `SELECT r.*, s.name AS space_name FROM reservations r JOIN spaces s ON s.id = r.space_id ORDER BY r.reserve_date DESC, r.start_time DESC LIMIT 100`
-    : `SELECT r.*, s.name AS space_name FROM reservations r JOIN spaces s ON s.id = r.space_id WHERE r.user_sub = ? ORDER BY r.reserve_date DESC, r.start_time DESC LIMIT 50`;
+    ? `SELECT r.*, s.name AS space_name FROM reservations r JOIN spaces s ON s.id = r.space_id WHERE EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?) ORDER BY r.reserve_date DESC, r.start_time DESC LIMIT 100`
+    : `SELECT r.*, s.name AS space_name FROM reservations r JOIN spaces s ON s.id = r.space_id WHERE r.user_sub = ? AND EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?) ORDER BY r.reserve_date DESC, r.start_time DESC LIMIT 50`;
 
-  const stmt = allForAdmin ? env.DB.prepare(sql) : env.DB.prepare(sql).bind(session.sub);
+  const stmt = allForAdmin ? env.DB.prepare(sql).bind(session.sub, session.sessionVersion ?? null) : env.DB.prepare(sql).bind(session.sub, session.sub, session.sessionVersion ?? null);
   const { results } = await stmt.all<Record<string, unknown>>();
 
   return jsonResponse({
