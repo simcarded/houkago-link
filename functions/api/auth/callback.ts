@@ -69,17 +69,17 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     .filter(Boolean);
   const role: 'user' | 'admin' = adminSubs.includes(info.sub) ? 'admin' : 'user';
 
-  if (env.DB) {
-    await env.DB.prepare(
-      `INSERT INTO users (sub, display_name, role, updated_at) VALUES (?, ?, ?, datetime('now'))
-       ON CONFLICT(sub) DO UPDATE SET display_name = excluded.display_name, role = excluded.role, updated_at = datetime('now')`,
-    )
-      .bind(info.sub, displayName, role)
-      .run();
-  }
+  if (!env.DB) return Response.redirect(`${url.origin}/mypage?auth_error=db`, 302);
+  const user = await env.DB.prepare(
+    `INSERT INTO users (sub, display_name, role, updated_at, session_version) VALUES (?, ?, ?, datetime('now'), ?)
+     ON CONFLICT(sub) DO UPDATE SET display_name = excluded.display_name, role = excluded.role,
+       updated_at = datetime('now'), session_version = COALESCE(users.session_version, excluded.session_version)
+     RETURNING session_version`,
+  ).bind(info.sub, displayName, role, crypto.randomUUID()).first<{ session_version: string }>();
+  if (!user?.session_version) return Response.redirect(`${url.origin}/mypage?auth_error=db`, 302);
 
   const sessionToken = await signToken(
-    { sub: info.sub, displayName, role, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 },
+    { sub: info.sub, displayName, role, sessionVersion: user.session_version, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 },
     env.SESSION_SECRET,
   );
 

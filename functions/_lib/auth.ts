@@ -82,12 +82,14 @@ export function buildCookie(
 }
 
 export async function getSession(request: Request, env: Env): Promise<SessionPayload | null> {
-  if (!env.SESSION_SECRET) return null;
+  if (!env.SESSION_SECRET || !env.DB) return null;
   const cookies = parseCookies(request.headers.get('Cookie'));
   const token = cookies[COOKIE_NAME];
   if (!token) return null;
   const payload = await verifyToken<SessionPayload>(token, env.SESSION_SECRET);
-  if (!payload || payload.exp < Date.now()) return null;
+  if (!payload || typeof payload.sub !== 'string' || typeof payload.exp !== 'number' || payload.exp < Date.now()) return null;
+  const user = await env.DB.prepare('SELECT session_version FROM users WHERE sub = ?').bind(payload.sub).first<{ session_version: string | null }>();
+  if (!user || (user.session_version ?? null) !== (payload.sessionVersion ?? null)) return null;
   const adminSubs = (env.ADMIN_GOOGLE_SUBS || '')
     .split(',')
     .map((s) => s.trim())

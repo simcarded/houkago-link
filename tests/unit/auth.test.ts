@@ -7,7 +7,8 @@ describe('session authorization', () => {
   it('revokes admin access immediately when the subject is removed from the allowlist', async () => {
     const token = await signToken({ sub: 'former-admin', displayName: 'Test', role: 'admin', exp: Date.now() + 60000 }, secret);
     const request = new Request('https://example.test/api/spaces', { headers: { Cookie: `houkago_session=${token}` } });
-    const session = await getSession(request as never, { SESSION_SECRET: secret, ADMIN_GOOGLE_SUBS: '' } as Env);
+    const db = { prepare: () => ({ bind: () => ({ first: async () => ({session_version:null}) }) }) };
+    const session = await getSession(request as never, { DB: db, SESSION_SECRET: secret, ADMIN_GOOGLE_SUBS: '' } as unknown as Env);
     expect(session?.role).toBe('user');
   });
   it('rejects expired sessions and foreign origins', async () => {

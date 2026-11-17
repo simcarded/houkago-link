@@ -12,4 +12,5 @@ export interface SessionPayload {
   displayName: string;
   role: 'user' | 'admin';
   exp: number;
+  sessionVersion?: string;
 }

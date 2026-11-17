@@ -352,6 +352,14 @@ export function App() {
                     onCheckInReservation={handleCheckInReservation}
                     onReschedule={handleReschedule}
                     onSelectSpace={setSelectedSpace}
+                    onDeleteAccount={async () => {
+                      const response = await fetch('/api/account', { method: 'DELETE', credentials: 'same-origin' });
+                      if (!response.ok) throw new Error('削除に失敗しました');
+                      setSession({ authenticated: false, user: null });
+                      setReservations([]);
+                      setFavoriteIds([]);
+                      setSelectedSpace(null);
+                    }}
                     onLogout={async () => {
                       await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
                       setSession({ authenticated: false, user: null });
@@ -379,6 +387,7 @@ export function App() {
         <footer className="mx-auto max-w-7xl px-4 sm:px-6 pt-8 text-center text-[11px] text-slate-500 space-y-1">
           <div>放課後Link｜高校地理授業向けプロトタイプ（掲載施設・企業名・地域統計は仮想データです）</div>
           <div>実運用時には施設管理責任・安全管理・保護者連絡・プライバシー保護体制の検討が必要です。</div>
+          <div><a href="/privacy.html" className="text-blue-700 underline">データの取扱い</a></div>
         </footer>
 
         <SpaceDetailModal

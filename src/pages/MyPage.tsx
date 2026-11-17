@@ -13,6 +13,7 @@ interface MyPageProps {
   onReschedule: (id: string, changes: { reserveDate: string; startTime: string; endTime: string; seatsCount: number }) => Promise<void>;
   onSelectSpace: (space: Facility) => void;
   onLogout: () => Promise<void>;
+  onDeleteAccount: () => Promise<void>;
 }
 
 export function MyPage({
@@ -25,11 +26,17 @@ export function MyPage({
   onReschedule,
   onSelectSpace,
   onLogout,
+  onDeleteAccount,
 }: MyPageProps) {
   const [qrTarget, setQrTarget] = useState<Reservation | null>(null);
   const [editing, setEditing] = useState<Reservation | null>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteText, setDeleteText] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleted, setDeleted] = useState(false);
   const favoriteSpaces = spaces.filter((s) => favoriteIds.includes(s.id));
   const now = Date.now();
   const hasEnded = (reservation: Reservation) => new Date(`${reservation.reserveDate}T${reservation.endTime}:00+09:00`).getTime() <= now;
@@ -71,8 +78,19 @@ export function MyPage({
       <section id="data-notice" aria-labelledby="data-notice-title" className="rounded-2xl border border-slate-200 bg-white/80 p-4 text-xs leading-relaxed text-slate-700">
         <h2 id="data-notice-title" className="mb-1 font-bold text-slate-900">このプロトタイプでのデータの扱い</h2>
         <p>Googleログイン時は、Googleの識別子と表示名、保存した予約・お気に入りをデータベースに保存します。Googleのパスワードは保存しません。</p>
-        <p className="mt-1">保存期間の自動制限とアカウント削除機能はまだありません。ログアウトしてもデータベース内の情報は削除されません。デモ予約・お気に入りはブラウザに保存されます。</p>
+        <p className="mt-1">情報は本人が削除するまで保存します。ログアウトでは削除されません。デモ予約・お気に入りはブラウザに保存されます。</p>
+        <p className="mt-1">削除後もCloudflareの時点復元履歴には一定期間残る場合があります。Googleアカウント自体やGoogle側の連携設定は削除されません。</p>
         <p className="mt-1">お問い合わせ: <a className="text-blue-700 underline" href="mailto:ka.kunstudio.3010@gmail.com">ka.kunstudio.3010@gmail.com</a></p>
+        <p className="mt-1"><a href="/privacy.html" className="text-blue-700 underline">データの取扱いについて詳しく見る</a></p>
+        {deleted && <p role="status" className="mt-2 font-bold text-emerald-700">データを削除し、ログアウトしました。</p>}
+        {session.authenticated && !deleteOpen && <button type="button" onClick={() => setDeleteOpen(true)} className="mt-2 text-rose-700 underline">アカウントと保存データの削除</button>}
+        {session.authenticated && deleteOpen && <div className="mt-3 space-y-2 rounded-xl border border-rose-200 bg-rose-50 p-3">
+          <p>予約（今後の予約を含む）・お気に入り・アカウント情報を削除します。この操作は元に戻せません。確認のため「削除」と入力してください。</p>
+          {session.user?.isAdmin && <p>管理者識別子はCloudflareの設定に残り、再ログイン時に管理者権限が戻ります。設定からの削除は運営窓口へお問い合わせください。</p>}
+          <label className="block">確認入力<input value={deleteText} onChange={(event) => setDeleteText(event.target.value)} className="ml-2 rounded border p-1" /></label>
+          {deleteError && <p role="alert" className="text-rose-700">{deleteError}</p>}
+          <div className="flex gap-2"><button type="button" disabled={deleting || deleteText !== '削除'} onClick={async () => { setDeleting(true); setDeleteError(''); try { await onDeleteAccount(); setDeleted(true); setDeleteOpen(false); } catch { setDeleteError('削除結果を確認できませんでした。通信状態とログイン状態を確認してください。'); } finally { setDeleting(false); } }} className="rounded bg-rose-700 px-3 py-1 text-white disabled:opacity-50">{deleting ? '削除中…' : 'データを削除する'}</button><button type="button" disabled={deleting} onClick={() => { setDeleteOpen(false); setDeleteText(''); }} className="rounded border px-3 py-1">戻る</button></div>
+        </div>}
       </section>
 
       {new URLSearchParams(window.location.search).has('auth_error') && (

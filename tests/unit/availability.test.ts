@@ -8,6 +8,8 @@ describe('selected-time availability', () => {
   it('counts peak occupancy and excludes cancellations', async () => {
     const db = new DatabaseSync(':memory:');
     db.exec(readFileSync('migrations/0001_init.sql', 'utf8'));
+    db.exec(readFileSync('migrations/0003_session_version.sql', 'utf8'));
+    db.exec("INSERT INTO users (sub,display_name) VALUES ('u','u')");
     db.exec(`INSERT INTO spaces (id,name,provider_type,provider_name,region_id,region_name,address,lat,lng,open_time,close_time,total_seats) VALUES ('s','demo','community','demo','r','r','demo',0,0,'15:00','21:00',3);
       INSERT INTO reservations (id,space_id,user_sub,reserve_date,start_time,end_time,seats_count,status) VALUES
       ('a','s','a','2099-01-01','16:00','17:00',1,'confirmed'), ('b','s','b','2099-01-01','17:00','18:00',1,'checked_in'),

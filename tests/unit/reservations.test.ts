@@ -7,7 +7,7 @@ describe('reservation API', () => {
     const secret = 'test-secret-long-enough-for-hmac';
     const token = await signToken({sub:'test',displayName:'test',role:'user',exp:Date.now()+60000}, secret);
     let sql = ''; let params: unknown[] = [];
-    const db = { prepare: (query: string) => { sql = query; return { bind: (...values: unknown[]) => { params = values; return { run: async () => ({meta:{changes:1}}) }; } }; } };
+    const db = { prepare: (query: string) => { sql = query; return { bind: (...values: unknown[]) => { params = values; return { first: async () => ({session_version:null}), run: async () => ({meta:{changes:1}}) }; } }; } };
     const request = new Request('https://example.test/api/reservations',{method:'POST',headers:{Origin:'https://example.test',Cookie:`houkago_session=${token}`,'Content-Type':'application/json'},body:JSON.stringify({spaceId:'space',reserveDate:'2099-01-01',startTime:'16:00',endTime:'18:00',seatsCount:1})});
     const response = await onRequestPost({request,env:{DB:db,SESSION_SECRET:secret}} as never);
     expect(response.status).toBe(201);

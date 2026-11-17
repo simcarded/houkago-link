@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="放課後Linkにおけるデータの取扱い">
+  <title>データの取扱い | 放課後Link</title>
+  <style>body{font-family:system-ui,sans-serif;line-height:1.8;color:#172033;background:#f8fafc;margin:0}main{max-width:760px;margin:2rem auto;background:white;border:1px solid #e2e8f0;border-radius:1rem;padding:clamp(1.2rem,5vw,2.5rem)}h1{font-size:1.6rem}h2{font-size:1.1rem;margin-top:2rem}a{color:#1d4ed8}li{margin:.3rem 0}</style>
+</head>
+<body><main>
+  <h1>放課後Link データの取扱い</h1>
+  <p>放課後Linkは地理の授業向けプロトタイプです。掲載施設・企業・地域統計は架空のデータで、実在施設の利用権を付与するものではありません。</p>
+  <h2>取得・利用する情報</h2>
+  <p>Googleログインで基本プロフィール（openid、profile）へのアクセスを求めます。Googleから得た識別子と表示名を、ログイン利用者の識別、表示、予約・お気に入りの管理に使います。プロフィール写真はGoogleの同意画面に表示される場合がありますが、本アプリのデータベースには保存しません。Googleのパスワードやアクセストークンは保存しません。</p>
+  <p>予約日時、施設、座席数、予約状態、お気に入りを識別子と関連付けて保存します。ログイン状態の維持に署名付きCookieを使用し、ブラウザ上には発表用のデモデータや画面の静的ファイルを保存する場合があります。</p>
+  <h2>保存期間と削除</h2>
+  <p>データベース内のアカウント情報、予約、お気に入りは、本人が削除するまで保存します。ログアウトだけでは削除されません。ログイン後、マイページの「アカウントと保存データの削除」から削除できます。今後の予約を含め、アプリからは利用できなくなります。</p>
+  <p>Cloudflare D1の時点復元履歴には、削除前のデータが一定期間残る場合があります。Cloudflareの案内ではWorkers Freeの復元可能期間は7日間です。別途作成されたバックアップがある場合は、その取扱いも確認が必要です。Googleアカウント自体とGoogle側の連携設定は本アプリの削除対象ではありません。</p>
+  <p>管理者の場合、Cloudflareに設定された管理者識別子は削除対象に含まれず、再ログイン時に管理者権限が戻ります。設定からの削除については運営窓口へお問い合わせください。</p>
+  <h2>外部サービスと安全対策</h2>
+  <p>Googleをログインに、Cloudflareを配信・データ保存に使用します。地図表示時にはOpenFreeMapまたは国土地理院のサービスへ通信し、経路リンクはOpenStreetMapを開きます。各サービスには通信に必要な情報が送られる場合があります。各事業者の取扱いもご確認ください。</p>
+  <p>Googleから取得したデータを広告や販売のために利用する処理はありません。条件検索は端末内で行い、Workers AIには送信しません。通信にはHTTPSを使用し、予約・お気に入りの取得はログインした本人に限定します。</p>
+  <h2>お問い合わせ</h2>
+  <p>放課後Link運営窓口: <a href="mailto:ka.kunstudio.3010@gmail.com">ka.kunstudio.3010@gmail.com</a></p>
+  <p>本ページの内容は、機能や運用方法が変わる場合に更新します。</p>
+  <p><a href="/">放課後Linkに戻る</a></p>
+</main></body>
+</html>
