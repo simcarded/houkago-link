@@ -2,6 +2,32 @@ import { expect, test } from '@playwright/test';
 
 test.use({ serviceWorkers: 'block' });
 
+test('別タブでアカウントが切り替わったら元の個人予約を隠す', async ({ page }) => {
+  let account = 'first';
+  let releaseCheck!: () => void;
+  const waitForCheck = new Promise<void>((resolve) => { releaseCheck = resolve; });
+  let delayCheck = false;
+  await page.route('**/api/**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/api/auth/me') {
+      if (delayCheck) { delayCheck = false; await waitForCheck; }
+      return route.fulfill({json:{authenticated:true,user:{sub:account,displayName:account,isAdmin:false}}});
+    }
+    if (path === '/api/reservations') return route.fulfill({json:{reservations:account === 'first' ? [{id:'res-private',spaceName:'最初の利用者の予約',reserveDate:'2099-01-01',startTime:'16:00',endTime:'17:00',seatsCount:1,status:'confirmed'}] : []}});
+    if (path === '/api/favorites') return route.fulfill({json:{favoriteIds:[]}});
+    return route.fulfill({status:503,json:{}});
+  });
+  await page.goto('/mypage');
+  await expect(page.getByText('最初の利用者の予約')).toBeVisible();
+  account = 'second';
+  delayCheck = true;
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.getByText('最初の利用者の予約')).toHaveCount(0);
+  releaseCheck();
+  await expect(page.getByText('Googleアカウント連携中（表示名: second）')).toBeVisible();
+  await expect(page.getByText('最初の利用者の予約')).toHaveCount(0);
+});
+
 test('ログアウトすると他の利用者の予約が残らない', async ({ page }) => {
   let loggedIn = true;
   await page.route('**/api/**', async (route) => {

@@ -81,6 +81,27 @@ export function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, [loadAll]);
 
+  useEffect(() => {
+    let active = true;
+    const recheckSession = async () => {
+      if (document.visibilityState !== 'visible') return;
+      // Hide account-specific data until a tab returning to view checks the shared cookie.
+      setLoading(true);
+      const current = await fetchSession();
+      if (!active) return;
+      if (current.authenticated !== session.authenticated || current.user?.sub !== session.user?.sub) {
+        setReservations([]);
+        setFavoriteIds([]);
+        setSelectedSpace(null);
+        await loadAll();
+      } else {
+        setLoading(false);
+      }
+    };
+    document.addEventListener('visibilitychange', recheckSession);
+    return () => { active = false; document.removeEventListener('visibilitychange', recheckSession); };
+  }, [loadAll, session.authenticated, session.user?.sub]);
+
   const navigate = (nextRoute: AppRoute) => {
     if (nextRoute !== route) {
       window.history.pushState({}, '', nextRoute);
