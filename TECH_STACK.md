@@ -13,7 +13,7 @@
 | 端末内の条件抽出 | キーワードから設備・料金・地域を絞り込み | AIを使用せず検索文をAIサービスへ送信しない。未対応表現や否定文には限界 | 辞書・対応表現の追加と評価 |
 | Vitest・Playwright・GitHub Actions | 単体・画面・継続テスト | 公開リポジトリの標準GitHubホストランナーは無料。利用条件に従う | テスト範囲の追加 |
 
-Google OAuthはテストモードで設定され、所有者アカウントのログインと予約・キャンセルを確認しました。Googleの[状態別の公式説明](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview)では、本アプリが要求する `openid profile` のような基本識別スコープのみのテストアプリは、テストユーザーリスト外のユーザーもアクセスできる例外があります。別アカウントでの実機検証は未実施です。本番のブランド確認・データ取扱いには別途Googleの要件があります。秘密情報をGitHubへ保存しないでください。
+Google OAuthはテストモードで設定され、所有者アカウントのログインと予約・キャンセル、別アカウントでのログインを確認しました。Googleの[状態別の公式説明](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview)では、本アプリが要求する `openid profile` のような基本識別スコープのみのテストアプリは、テストユーザーリスト外のユーザーもアクセスできる例外があります。本番のブランド確認・データ取扱いには別途Googleの要件があります。秘密情報をGitHubへ保存しないでください。
 
 検索は端末内のルールベース処理を使い、Workers AIを呼び出しません。未使用のWorkers AIコードは有効化されておらず、利用量の推定値は無料枠保証として使えません。
 
