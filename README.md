@@ -34,7 +34,14 @@ npm run test:e2e
 
 ## デプロイ
 
-`development` がPagesの本番ブランチです。Direct UploadのためGitHubへのpushだけでは自動公開されません。型検査、lint、単体・E2Eテストとビルド後に、対象アカウントを確認して `npx wrangler pages deploy dist --project-name houkago-link --branch development` を実行します。過去のデプロイへのロールバックはCloudflare Pagesのデプロイ一覧から行えます。D1のデータはロールバックされません。`main` への変更には事前確認が必要です。
+`development` がPagesの本番ブランチです。既存のDirect Uploadプロジェクトを維持し、`.github/workflows/ci.yml` の型検査・lint・単体テスト・E2Eテスト・ビルドのすべてが成功した `development` へのpushから、Wranglerで自動公開する構成を用意しました。PR・`main`・他ブランチからは本番公開しません。テスト済みコミットが最新の `development` でない場合もスキップします。
+
+**自動デプロイは初期状態で無効。** Cloudflareの対象アカウントに対し **Account / Cloudflare Pages / Edit** のみを許可したAPIトークンを作成してから、GitHubの **Settings → Secrets and variables → Actions** に以下を登録してください。トークンはソースやチャットへ貼らないでください。
+
+- Repository secrets: `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`
+- Repository variable: `CLOUDFLARE_PAGES_AUTO_DEPLOY=enabled`（最後に設定）
+
+有効化後、次の `development` へのpushがCIを通った場合のみ本番デプロイされます。過去の成功runは変数の設定だけでは再実行されません。手動公開の代替手順は `npx wrangler pages deploy dist --project-name houkago-link --branch development` です。CIはD1のマイグレーションを自動実行しません。停止時は変数を無効化します。過去のデプロイへのロールバックはCloudflare Pagesのデプロイ一覧から行えますが、D1のデータはロールバックされません。`main` への変更には事前確認が必要です.
 
 ## 検証と制約
 
