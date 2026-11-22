@@ -3,7 +3,10 @@ on:
   push:
     branches: [main, development]
   pull_request:
-    branches: [main]
+    branches: [main, development]
+
+permissions:
+  contents: read
 
 jobs:
   verify:
@@ -22,3 +25,27 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium webkit
       - run: npm run test:e2e -- --workers=2
+      - name: Confirm this is still the latest development commit
+        id: production_head
+        if: >-
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/development' &&
+          vars.CLOUDFLARE_PAGES_AUTO_DEPLOY == 'enabled'
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest="$(git ls-remote origin refs/heads/development | cut -f1)"
+          test -n "$latest"
+          if [ "$latest" = "$GITHUB_SHA" ]; then
+            echo 'deploy=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'deploy=false' >> "$GITHUB_OUTPUT"
+            echo 'Skipping deployment of an outdated commit.'
+          fi
+      - name: Deploy to Cloudflare Pages
+        if: steps.production_head.outputs.deploy == 'true'
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=houkago-link --branch=development
