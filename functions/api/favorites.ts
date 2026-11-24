@@ -22,8 +22,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!body.spaceId) return jsonResponse({ error: 'spaceId必須' }, 400);
 
   if (body.favorite) {
-    await env.DB.prepare('INSERT OR IGNORE INTO favorites (user_sub, space_id) SELECT ?, ? WHERE EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?)')
-      .bind(session.sub, body.spaceId, session.sub, session.sessionVersion ?? null)
+    await env.DB.prepare('INSERT OR IGNORE INTO favorites (user_sub, space_id) SELECT ?, ? WHERE EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?) AND EXISTS (SELECT 1 FROM spaces WHERE id = ? AND is_published = 1 AND is_demo = 0)')
+      .bind(session.sub, body.spaceId, session.sub, session.sessionVersion ?? null, body.spaceId)
       .run();
   } else {
     await env.DB.prepare('DELETE FROM favorites WHERE user_sub = ? AND space_id = ? AND EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?)')

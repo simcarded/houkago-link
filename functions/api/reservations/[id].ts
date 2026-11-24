@@ -26,7 +26,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
       SET reserve_date = ?, start_time = ?, end_time = ?, seats_count = ?
       WHERE r.id = ? AND r.user_sub = ? AND r.status = 'confirmed'
         AND EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?)
-        AND EXISTS (SELECT 1 FROM spaces s WHERE s.id = r.space_id AND s.is_published = 1 AND s.open_time <= ? AND s.close_time >= ?)
+        AND EXISTS (SELECT 1 FROM spaces s WHERE s.id = r.space_id AND s.is_published = 1 AND s.is_demo = 0 AND s.open_time <= ? AND s.close_time >= ?)
         AND NOT EXISTS (SELECT 1 FROM reservations other WHERE other.id != r.id AND other.user_sub = r.user_sub
           AND other.reserve_date = ? AND other.status IN ('confirmed', 'checked_in')
           AND NOT (other.end_time <= ? OR other.start_time >= ?))
@@ -48,12 +48,12 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   if (status === 'cancelled' || status === 'checked_in') {
     const query =
       session.role === 'admin'
-        ? `UPDATE reservations SET status = ? WHERE id = ? AND status = 'confirmed' AND EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?)`
-        : `UPDATE reservations SET status = ? WHERE id = ? AND user_sub = ? AND status = 'confirmed' AND EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?)`;
+        ? `UPDATE reservations SET status = ? WHERE id = ? AND status = 'confirmed' AND (? = 'cancelled' OR EXISTS (SELECT 1 FROM spaces s JOIN reservations r ON r.space_id = s.id WHERE r.id = ? AND s.is_demo = 0)) AND EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?)`
+        : `UPDATE reservations SET status = ? WHERE id = ? AND user_sub = ? AND status = 'confirmed' AND (? = 'cancelled' OR EXISTS (SELECT 1 FROM spaces s JOIN reservations r ON r.space_id = s.id WHERE r.id = ? AND s.is_demo = 0)) AND EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?)`;
     const stmt =
       session.role === 'admin'
-        ? env.DB.prepare(query).bind(status, id, session.sub, session.sessionVersion ?? null)
-        : env.DB.prepare(query).bind(status, id, session.sub, session.sub, session.sessionVersion ?? null);
+        ? env.DB.prepare(query).bind(status, id, status, id, session.sub, session.sessionVersion ?? null)
+        : env.DB.prepare(query).bind(status, id, session.sub, status, id, session.sub, session.sessionVersion ?? null);
     const res = await stmt.run();
     if (res.meta.changes === 0) return jsonResponse({ error: '対象予約が見つかりません' }, 404);
     return jsonResponse({ ok: true });

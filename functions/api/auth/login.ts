@@ -8,9 +8,11 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       503,
     );
   }
+  const requestedReturnTo = new URL(request.url).searchParams.get('returnTo') || '/mypage';
+  const returnTo = requestedReturnTo === '/admin' ? '/admin' : '/mypage';
   const state = crypto.randomUUID();
   const nonce = crypto.randomUUID();
-  const signedState = await signToken({ state, nonce, exp: Date.now() + 10 * 60 * 1000 }, env.SESSION_SECRET);
+  const signedState = await signToken({ state, nonce, returnTo, exp: Date.now() + 10 * 60 * 1000 }, env.SESSION_SECRET);
   const redirectUri = `${new URL(request.url).origin}/api/auth/callback`;
 
   const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');

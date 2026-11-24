@@ -115,13 +115,14 @@ export function MyPage({
                     <div className="font-bold text-slate-900">{r.spaceName}</div>
                     <div className="text-slate-600">
                       {r.reserveDate} {r.startTime}〜{r.endTime} ・ {r.seatsCount}席 ・{' '}
+                      {r.isDemo && <span className="font-bold text-amber-700">サンプル予約（施設は実在しません） ・ </span>}
                       <span className="font-medium text-blue-700">
                         {r.status === 'checked_in' ? 'チェックイン済' : '予約確定'}
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    {r.status === 'confirmed' && <button type="button" onClick={() => { setError(''); setEditing(r); }}
+                    {r.status === 'confirmed' && !r.isDemo && <button type="button" onClick={() => { setError(''); setEditing(r); }}
                       className="rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-blue-700">変更</button>}
                     <button
                       type="button"

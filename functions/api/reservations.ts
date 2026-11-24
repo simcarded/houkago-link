@@ -11,8 +11,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const allForAdmin = url.searchParams.get('scope') === 'admin' && session.role === 'admin';
 
   const sql = allForAdmin
-    ? `SELECT r.*, s.name AS space_name FROM reservations r JOIN spaces s ON s.id = r.space_id WHERE EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?) ORDER BY r.reserve_date DESC, r.start_time DESC LIMIT 100`
-    : `SELECT r.*, s.name AS space_name FROM reservations r JOIN spaces s ON s.id = r.space_id WHERE r.user_sub = ? AND EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?) ORDER BY r.reserve_date DESC, r.start_time DESC LIMIT 50`;
+    ? `SELECT r.*, s.name AS space_name, s.is_demo AS is_demo FROM reservations r JOIN spaces s ON s.id = r.space_id WHERE EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?) ORDER BY r.reserve_date DESC, r.start_time DESC LIMIT 100`
+    : `SELECT r.*, s.name AS space_name, s.is_demo AS is_demo FROM reservations r JOIN spaces s ON s.id = r.space_id WHERE r.user_sub = ? AND EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?) ORDER BY r.reserve_date DESC, r.start_time DESC LIMIT 50`;
 
   const stmt = allForAdmin ? env.DB.prepare(sql).bind(session.sub, session.sessionVersion ?? null) : env.DB.prepare(sql).bind(session.sub, session.sub, session.sessionVersion ?? null);
   const { results } = await stmt.all<Record<string, unknown>>();
@@ -27,6 +27,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       endTime: r.end_time,
       seatsCount: r.seats_count,
       status: r.status,
+      isDemo: Boolean(r.is_demo),
       createdAt: r.created_at,
     })),
   });
@@ -56,7 +57,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const result = await env.DB.prepare(
     `INSERT INTO reservations (id, space_id, user_sub, reserve_date, start_time, end_time, seats_count, status)
      SELECT ?, ?, ?, ?, ?, ?, ?, 'confirmed'
-     WHERE EXISTS (SELECT 1 FROM spaces WHERE id = ? AND is_published = 1 AND open_time <= ? AND close_time >= ?)
+     WHERE EXISTS (SELECT 1 FROM spaces WHERE id = ? AND is_published = 1 AND is_demo = 0 AND open_time <= ? AND close_time >= ?)
        AND EXISTS (SELECT 1 FROM users WHERE sub = ? AND session_version IS ?)
        AND NOT EXISTS (
          SELECT 1 FROM reservations

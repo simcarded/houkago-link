@@ -23,6 +23,10 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
       updates.push(`${column} = ?`); binds.push(value.trim());
     } else if (Object.hasOwn(flags, key)) {
       if (typeof value !== 'boolean') return jsonResponse({ error: '設備の指定が不正です' }, 400);
+      if (key === 'isPublished' && value) {
+        const space = await env.DB.prepare('SELECT is_demo FROM spaces WHERE id = ?').bind(String(params.id || '')).first<{ is_demo: number }>();
+        if (space?.is_demo) return jsonResponse({ error: 'サンプル施設は一般公開できません。実在施設の情報として登録し直してください。' }, 409);
+      }
       updates.push(`${flags[key]} = ?`); binds.push(value ? 1 : 0);
     } else if (Object.hasOwn(numbers, key)) {
       const [column, min, max] = numbers[key];
@@ -49,4 +53,21 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   const result = await env.DB.prepare(sql).bind(...binds, String(params.id || ''), openTime, closeTime, today, openTime, closeTime, totalSeats).run();
   if (result.meta.changes !== 1) return jsonResponse({ error: '施設が見つからないか、営業時間・座席数が既存の予約と矛盾します。' }, 409);
   return jsonResponse({ ok:true });
+};
+
+export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params }) => {
+  if (!assertSameOrigin(request)) return jsonResponse({ error: 'Forbidden' }, 403);
+  if (!env.DB) return jsonResponse({ error: 'DB未接続' }, 503);
+  const session = await getSession(request, env);
+  if (!session || session.role !== 'admin') return jsonResponse({ error: '管理者権限が必要です' }, 403);
+
+  const result = await env.DB.prepare(`DELETE FROM spaces WHERE id = ?
+    AND NOT EXISTS (SELECT 1 FROM reservations WHERE space_id = spaces.id)
+    AND NOT EXISTS (SELECT 1 FROM favorites WHERE space_id = spaces.id)`)
+    .bind(String(params.id || ''))
+    .run();
+  if (result.meta.changes !== 1) {
+    return jsonResponse({ error: '削除できません。予約やお気に入りがある施設、またはサンプル施設以外は削除できません。' }, 409);
+  }
+  return jsonResponse({ ok: true });
 };

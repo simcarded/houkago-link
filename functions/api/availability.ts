@@ -24,7 +24,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       FROM reservations r, input i WHERE r.space_id = i.space_id AND r.reserve_date = i.reserve_date
         AND r.status IN ('confirmed', 'checked_in') AND r.start_time <= p.point AND r.end_time > p.point))
       FROM points p), 0) AS available
-    FROM spaces s, input i WHERE s.id = i.space_id AND s.is_published = 1
+    FROM spaces s, input i WHERE s.id = i.space_id AND s.is_published = 1 AND s.is_demo = 0
       AND s.open_time <= i.start_time AND s.close_time >= i.end_time`)
     .bind(space, date, start, end).first<{ available: number }>();
   if (!row) return jsonResponse({ error: '施設または営業時間を確認してください' }, 404);

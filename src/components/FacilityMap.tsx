@@ -13,6 +13,26 @@ interface FacilityMapProps {
   heightClass?: string;
 }
 
+const AICHI_BOUNDS: [[number, number], [number, number]] = [
+  [136.62, 34.55],
+  [137.86, 35.45],
+];
+const SOURCE_ID = 'houkago-facilities';
+const POINT_LAYER = 'houkago-facility-points';
+const CLUSTER_LAYER = 'houkago-facility-clusters';
+const CLUSTER_COUNT_LAYER = 'houkago-facility-cluster-count';
+
+function featureCollection(spaces: Facility[], selectedId: string | null) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: spaces.map((space) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: [space.lng, space.lat] },
+      properties: { id: space.id, name: space.name, isDemo: space.isDemo, selected: space.id === selectedId },
+    })),
+  };
+}
+
 export function FacilityMap({
   spaces,
   selectedId,
@@ -23,41 +43,50 @@ export function FacilityMap({
 }: FacilityMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const markersRef = useRef<maplibregl.Marker[]>([]);
-  const [mapMode, setMapMode] = useState<'osm-vector' | 'gsi-raster' | 'offline-svg'>('osm-vector');
+  const spacesRef = useRef(spaces);
+  const onSelectRef = useRef(onSelect);
+  const selectedIdRef = useRef(selectedId);
+  const userLocationRef = useRef(userLocation);
+  const [mapMode, setMapMode] = useState<'osm-vector' | 'gsi-raster'>('osm-vector');
+  const [mapError, setMapError] = useState(false);
+  const selected = spaces.find((space) => space.id === selectedId) || spaces[0] || null;
 
-  const selected = spaces.find((s) => s.id === selectedId) || spaces[0] || null;
+  spacesRef.current = spaces;
+  onSelectRef.current = onSelect;
+  selectedIdRef.current = selectedId;
+  userLocationRef.current = userLocation;
 
   useEffect(() => {
-    if (!containerRef.current || mapMode === 'offline-svg') return;
+    if (!containerRef.current) return;
+    setMapError(false);
 
-    const style: maplibregl.StyleSpecification | string =
-      mapMode === 'osm-vector'
-        ? 'https://tiles.openfreemap.org/styles/liberty'
-        : {
-            version: 8,
-            sources: {
-              gsi: {
-                type: 'raster',
-                tiles: ['https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png'],
-                tileSize: 256,
-                attribution: '地理院タイル',
-              },
+    const style: maplibregl.StyleSpecification | string = mapMode === 'osm-vector'
+      ? 'https://tiles.openfreemap.org/styles/liberty'
+      : {
+          version: 8,
+          sources: {
+            gsi: {
+              type: 'raster',
+              tiles: ['https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png'],
+              tileSize: 256,
+              attribution: '地理院タイル',
             },
-            layers: [{ id: 'gsi-layer', type: 'raster', source: 'gsi' }],
-          };
+          },
+          layers: [{ id: 'gsi-layer', type: 'raster', source: 'gsi' }],
+        };
 
     let map: maplibregl.Map;
     try {
       map = new maplibregl.Map({
         container: containerRef.current,
         style,
-        center: [136.9066, 35.16],
-        zoom: 9.2,
+        center: [136.98, 35.02],
+        zoom: 7.5,
         attributionControl: false,
+        maxBounds: [[136.15, 34.1], [138.2, 35.95]],
       });
     } catch {
-      setMapMode('offline-svg');
+      setMapError(true);
       return;
     }
 
@@ -65,23 +94,116 @@ export function FacilityMap({
     map.addControl(
       new maplibregl.AttributionControl({
         compact: true,
-        customAttribution:
-          mapMode === 'osm-vector'
-            ? '© OpenStreetMap contributors / OpenFreeMap'
-            : '出典：国土地理院 地理院タイル',
+        customAttribution: mapMode === 'osm-vector'
+          ? '© OpenStreetMap contributors / OpenFreeMap'
+          : '出典：国土地理院 地理院タイル',
       }),
       'bottom-right',
     );
 
+    map.once('load', () => {
+      map.addSource(SOURCE_ID, {
+        type: 'geojson',
+        data: featureCollection(spacesRef.current, selectedIdRef.current),
+        cluster: true,
+        clusterRadius: 42,
+        clusterMaxZoom: 14,
+      });
+      map.addSource('houkago-user-location', {
+        type: 'geojson',
+        data: userLocationRef.current
+          ? { type: 'Feature', geometry: { type: 'Point', coordinates: [userLocationRef.current.lng, userLocationRef.current.lat] }, properties: {} }
+          : { type: 'FeatureCollection', features: [] },
+      });
+      map.addLayer({
+        id: 'houkago-user-location-dot',
+        type: 'circle',
+        source: 'houkago-user-location',
+        paint: { 'circle-radius': 7, 'circle-color': '#2563eb', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 3 },
+      });
+      map.addLayer({
+        id: CLUSTER_LAYER,
+        type: 'circle',
+        source: SOURCE_ID,
+        filter: ['has', 'point_count'],
+        paint: {
+          'circle-color': ['step', ['get', 'point_count'], '#2563eb', 10, '#1d4ed8', 30, '#1e40af'],
+          'circle-radius': ['step', ['get', 'point_count'], 18, 10, 22, 30, 27],
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff',
+        },
+      });
+      map.addLayer({
+        id: CLUSTER_COUNT_LAYER,
+        type: 'symbol',
+        source: SOURCE_ID,
+        filter: ['has', 'point_count'],
+        layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-font': ['Open Sans Bold'], 'text-size': 12 },
+        paint: { 'text-color': '#ffffff' },
+      });
+      map.addLayer({
+        id: POINT_LAYER,
+        type: 'circle',
+        source: SOURCE_ID,
+        filter: ['!', ['has', 'point_count']],
+        paint: {
+          'circle-color': ['case', ['==', ['get', 'isDemo'], true], '#d97706', ['==', ['get', 'selected'], true], '#1d4ed8', '#0ea5e9'],
+          'circle-radius': ['case', ['==', ['get', 'selected'], true], 9, 7],
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff',
+        },
+      });
+      map.addLayer({
+        id: 'houkago-facility-labels',
+        type: 'symbol',
+        source: SOURCE_ID,
+        minzoom: 11,
+        filter: ['!', ['has', 'point_count']],
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-font': ['Open Sans Semibold'],
+          'text-size': 11,
+          'text-offset': [0, 1.35],
+          'text-anchor': 'top',
+          'text-max-width': 12,
+        },
+        paint: {
+          'text-color': '#0f172a',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.5,
+        },
+      });
+
+      map.on('click', CLUSTER_LAYER, (event) => {
+        const feature = map.queryRenderedFeatures(event.point, { layers: [CLUSTER_LAYER] })[0];
+        const clusterId = feature?.properties?.cluster_id;
+        const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource;
+        if (typeof clusterId === 'number') {
+          source.getClusterExpansionZoom(clusterId).then((zoom) => {
+            const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+            map.easeTo({ center: coordinates, zoom });
+          }).catch(() => setMapError(true));
+        }
+      });
+      map.on('click', POINT_LAYER, (event) => {
+        const feature = map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER] })[0];
+        const id = feature?.properties?.id;
+        const space = spacesRef.current.find((item) => item.id === id);
+        if (space) onSelectRef.current(space);
+      });
+      map.on('mouseenter', CLUSTER_LAYER, () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', CLUSTER_LAYER, () => { map.getCanvas().style.cursor = ''; });
+      map.on('mouseenter', POINT_LAYER, () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', POINT_LAYER, () => { map.getCanvas().style.cursor = ''; });
+      map.fitBounds(AICHI_BOUNDS, { padding: 30, maxZoom: 8, duration: 0 });
+      setMapError(false);
+    });
     map.on('error', () => {
-      setMapMode((prev) => (prev === 'osm-vector' ? 'gsi-raster' : 'offline-svg'));
+      if (!map.isStyleLoaded()) setMapError(true);
     });
 
     mapRef.current = map;
-
     return () => {
-      markersRef.current.forEach((m) => m.remove());
-      markersRef.current = [];
       map.remove();
       mapRef.current = null;
     };
@@ -89,60 +211,34 @@ export function FacilityMap({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || mapMode === 'offline-svg') return;
-
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
-
-    spaces.forEach((space) => {
-      const el = document.createElement('button');
-      el.type = 'button';
-      const isSelected = space.id === selectedId;
-      el.className = `rounded-full px-2.5 py-1 text-[11px] font-bold shadow-md border transition transform ${
-        space.isSimulation
-          ? 'bg-emerald-600 text-white border-white'
-          : isSelected
-            ? 'bg-blue-700 text-white border-white scale-110'
-            : 'bg-white/95 text-slate-800 border-blue-200 hover:scale-105'
-      }`;
-      el.textContent = `${space.feeYen === 0 ? '無料' : `${space.feeYen}円`} · 空${space.availableSeats}`;
-      el.title = space.name;
-      el.onclick = () => onSelect(space);
-
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([space.lng, space.lat])
-        .addTo(map);
-      markersRef.current.push(marker);
-    });
-
-    if (userLocation) {
-      const userEl = document.createElement('div');
-      userEl.className = 'h-4 w-4 rounded-full bg-blue-600 ring-4 ring-blue-300/60 border-2 border-white';
-      userEl.title = '現在地';
-      const m = new maplibregl.Marker({ element: userEl })
-        .setLngLat([userLocation.lng, userLocation.lat])
-        .addTo(map);
-      markersRef.current.push(m);
-    }
-  }, [spaces, selectedId, userLocation, mapMode, onSelect]);
+    if (!map || !map.isStyleLoaded() || !map.getSource(SOURCE_ID)) return;
+    const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource;
+    source.setData(featureCollection(spaces, selectedId));
+  }, [spaces, selectedId, mapMode]);
 
   useEffect(() => {
-    if (!mapRef.current || !selectedId || mapMode === 'offline-svg') return;
-    const target = spaces.find((s) => s.id === selectedId);
-    if (target) {
-      mapRef.current.flyTo({ center: [target.lng, target.lat], zoom: 11.8, duration: 550 });
+    const source = mapRef.current?.getSource('houkago-user-location') as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+    source.setData(userLocation
+      ? { type: 'Feature', geometry: { type: 'Point', coordinates: [userLocation.lng, userLocation.lat] }, properties: {} }
+      : { type: 'FeatureCollection', features: [] });
+  }, [userLocation, mapMode]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (userLocation) {
+      map.easeTo({ center: [userLocation.lng, userLocation.lat], zoom: 11, duration: 500 });
+    } else if (selectedId && selected) {
+      map.easeTo({ center: [selected.lng, selected.lat], zoom: 11, duration: 500 });
     }
-  }, [selectedId, spaces, mapMode]);
+  }, [selected, selectedId, userLocation]);
 
   const handleSearchBounds = () => {
-    if (!mapRef.current || !onBoundsFilter) return;
-    const b = mapRef.current.getBounds();
-    onBoundsFilter({
-      north: b.getNorth(),
-      south: b.getSouth(),
-      east: b.getEast(),
-      west: b.getWest(),
-    });
+    const map = mapRef.current;
+    if (!map || !onBoundsFilter) return;
+    const bounds = map.getBounds();
+    onBoundsFilter({ north: bounds.getNorth(), south: bounds.getSouth(), east: bounds.getEast(), west: bounds.getWest() });
   };
 
   return (
@@ -152,73 +248,31 @@ export function FacilityMap({
           <MapPin className="h-4 w-4 text-blue-600" />
           <span>愛知県内 学習スペースマップ</span>
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600">
-            {mapMode === 'osm-vector'
-              ? 'OpenStreetMap'
-              : mapMode === 'gsi-raster'
-                ? '地理院タイル'
-                : 'オフライン簡易地図'}
+            {mapMode === 'osm-vector' ? 'OpenStreetMap' : '地理院タイル'}
           </span>
         </div>
-
         <div className="flex items-center gap-1.5">
-          {onBoundsFilter && mapMode !== 'offline-svg' && (
-            <button
-              type="button"
-              onClick={handleSearchBounds}
-              className="rounded-xl bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 transition"
-            >
+          {onBoundsFilter && (
+            <button type="button" onClick={handleSearchBounds} className="rounded-xl bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 transition">
               この範囲で検索
             </button>
           )}
           <button
             type="button"
-            onClick={() =>
-              setMapMode((m) => (m === 'osm-vector' ? 'gsi-raster' : m === 'gsi-raster' ? 'offline-svg' : 'osm-vector'))
-            }
+            onClick={() => setMapMode((mode) => mode === 'osm-vector' ? 'gsi-raster' : 'osm-vector')}
             className="rounded-xl bg-white/90 border border-slate-200 px-2.5 py-1 text-[11px] text-slate-600 hover:bg-white"
           >
-            地図切替
+            地図を切り替え
           </button>
         </div>
       </div>
 
       <div className={`relative w-full ${heightClass}`}>
-        {mapMode === 'offline-svg' ? (
-          <div className="h-full w-full bg-gradient-to-br from-sky-50 to-blue-100/70 p-4 flex flex-col justify-between">
-            <div className="text-xs text-slate-600">
-              オフライン / タイル接続制限時の簡易マップ表示（クリックで施設を選択）
-            </div>
-            <svg viewBox="0 0 400 260" className="w-full h-full">
-              <path
-                d="M65,45 L175,30 L265,55 L345,145 L305,215 L205,205 L165,235 L125,220 L145,165 L70,130 Z"
-                fill="rgba(255,255,255,0.75)"
-                stroke="#93C5FD"
-                strokeWidth="2"
-              />
-              {spaces.map((s) => {
-                const x = ((s.lng - 136.65) / 0.9) * 340 + 30;
-                const y = (1 - (s.lat - 34.65) / 0.78) * 210 + 25;
-                const active = s.id === selectedId;
-                return (
-                  <g key={s.id} className="cursor-pointer" onClick={() => onSelect(s)}>
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r={active ? 10 : 7}
-                      fill={s.isSimulation ? '#059669' : active ? '#1D4ED8' : '#3B82F6'}
-                      stroke="#FFFFFF"
-                      strokeWidth="2"
-                    />
-                    <text x={x + 10} y={y + 4} fontSize="9" fill="#1E293B" fontWeight="600">
-                      {s.name.slice(0, 8)}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
+        <div ref={containerRef} className="h-full w-full" />
+        {mapError && (
+          <div role="status" className="absolute inset-x-4 top-4 rounded-xl bg-white/95 p-3 text-xs text-slate-700 shadow">
+            地図を読み込めません。通信を確認するか「地図を切り替え」をお試しください。
           </div>
-        ) : (
-          <div ref={containerRef} className="h-full w-full" />
         )}
 
         {selected && (
@@ -226,24 +280,26 @@ export function FacilityMap({
             <div className="min-w-0">
               <div className="text-xs font-bold text-slate-900 truncate">{selected.name}</div>
               <div className="text-[11px] text-slate-600">
-                {selected.feeYen === 0 ? '無料' : `${selected.feeYen}円`} ・ 空席 {selected.availableSeats}/
-                {selected.totalSeats} ・ {selected.openTime}〜{selected.closeTime}
+                {selected.isDemo
+                  ? 'サンプル地点・予約や経路案内には使用できません'
+                  : `${selected.feeYen === 0 ? '無料' : `${selected.feeYen}円`} ・ 空席 ${selected.availableSeats}/${selected.totalSeats} ・ ${selected.openTime}〜${selected.closeTime}`}
               </div>
             </div>
-            <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${selected.lat},${selected.lng}&travelmode=walking`}
-              target="_blank"
-              rel="noreferrer"
-              className="shrink-0 inline-flex items-center gap-1 rounded-xl bg-blue-600 px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-blue-700"
-            >
-              <Navigation className="h-3 w-3" />
-              経路
-              <ExternalLink className="h-3 w-3" />
-            </a>
+            {selected.isDemo ? (
+              <span className="shrink-0 rounded-lg bg-amber-100 px-2 py-1 text-[10px] font-semibold text-amber-900">サンプル</span>
+            ) : (
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${selected.lat},${selected.lng}&travelmode=walking`}
+                target="_blank"
+                rel="noreferrer"
+                className="shrink-0 inline-flex items-center gap-1 rounded-xl bg-blue-600 px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-blue-700"
+              >
+                <Navigation className="h-3 w-3" /> 経路 <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
           </div>
         )}
       </div>
     </div>
   );
 }
-

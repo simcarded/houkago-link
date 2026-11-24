@@ -256,7 +256,6 @@ export function App() {
                 {route === '/admin' && (
                   <AdminPage
                     session={session}
-                    regions={[]}
                     spaces={allSpaces}
                     onRefreshSpaces={refreshSpaces}
                   />

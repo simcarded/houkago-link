@@ -20,10 +20,11 @@ test('管理者は予約と矛盾する編集の失敗を確認し、施設情�
   });
   await page.goto('/admin');
   await page.getByRole('button',{name:`${space.name}を編集`}).click();
-  await page.getByLabel('座席数',{exact:true}).fill('20');
+  const editForm = page.locator('form').last();
+  await editForm.getByLabel('座席数',{exact:true}).fill('20');
   await page.getByRole('button',{name:'施設の変更を保存'}).click();
-  await expect(page.getByRole('status')).toContainText('既存の予約と矛盾');
-  await expect(page.getByLabel('座席数',{exact:true})).toHaveValue('20');
+  await expect(page.locator('p[role="status"]')).toContainText('既存の予約と矛盾');
+  await expect(editForm.getByLabel('座席数',{exact:true})).toHaveValue('20');
   reject = false;
   const saveResponse = page.waitForResponse((response) =>
     response.url().includes(`/api/spaces/${space.id}`) && response.request().method() === 'PATCH',

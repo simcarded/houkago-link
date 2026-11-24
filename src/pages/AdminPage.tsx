@@ -1,26 +1,30 @@
 import { useEffect, useState } from 'react';
-import { ShieldCheck, Plus } from 'lucide-react';
-import type { Facility, RegionStat, Reservation, UserSession } from '../types';
+import { ShieldCheck, Plus, Trash2 } from 'lucide-react';
+import type { Facility, Reservation, UserSession } from '../types';
 import { GlassCard } from '../components/LiquidUI';
+import { FacilityMap } from '../components/FacilityMap';
 import { fetchSpaces } from '../lib/api';
 
 interface AdminPageProps {
   session: UserSession;
   spaces: Facility[];
-  regions: RegionStat[];
   onRefreshSpaces: () => Promise<void>;
 }
 
-export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPageProps) {
+export function AdminPage({ session, spaces, onRefreshSpaces }: AdminPageProps) {
   const [adminSpaces, setAdminSpaces] = useState<Facility[]>(spaces);
   const [editing, setEditing] = useState<Facility | null>(null);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState('');
-  const [providerName, setProviderName] = useState('');
-  const [regionId, setRegionId] = useState(regions[0]?.id || 'nagoya-center');
+  const [providerName, setProviderName] = useState('架空の地域サンプル');
+  const [regionName, setRegionName] = useState('名古屋市');
   const [address, setAddress] = useState('');
   const [totalSeats, setTotalSeats] = useState(16);
-  const feeYen = 0;
+  const [feeYen, setFeeYen] = useState(0);
+  const [lat, setLat] = useState(35.1814);
+  const [lng, setLng] = useState(136.9064);
+  const [isDemo, setIsDemo] = useState(true);
+  const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
   const [adminReservations, setAdminReservations] = useState<Reservation[]>([]);
   const [statusMsg, setStatusMsg] = useState('');
 
@@ -38,9 +42,8 @@ export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPa
       <GlassCard className="p-6 text-center space-y-2">
         <ShieldCheck className="h-8 w-8 text-slate-400 mx-auto" />
         <h1 className="text-base font-bold text-slate-900">管理者権限が必要です</h1>
-        <p className="text-xs text-slate-600">
-          権限判定はCloudflare側の `ADMIN_GOOGLE_SUBS` によりサーバー側で厳格に制御されています。
-        </p>
+        <p className="text-xs text-slate-600">管理ページはリンクから開けますが、施設や予約の変更は管理者アカウントでログインした後に行えます。</p>
+        {!session.authenticated && <a href="/api/auth/login?returnTo=%2Fadmin" className="inline-flex rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white">Googleでログイン</a>}
       </GlassCard>
     );
   }
@@ -48,37 +51,49 @@ export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPa
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatusMsg('');
-    const region = regions.find((r) => r.id === regionId);
-    const res = await fetch('/api/spaces', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({
-        name,
-        providerName,
-        providerType: 'enterprise',
-        regionId,
-        regionName: region?.name || '名古屋市中心部',
-        address,
-        lat: region?.lat || 35.17,
-        lng: region?.lng || 136.88,
-        totalSeats,
-        feeYen,
-        wifi: true,
-        outlets: true,
-        quiet: true,
-      }),
-    });
-    if (res.ok) {
+    try {
+      const res = await fetch('/api/spaces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          name,
+          providerName,
+          providerType: 'enterprise',
+          regionId: encodeURIComponent(regionName.trim()),
+          regionName,
+          address,
+          lat,
+          lng,
+          totalSeats,
+          feeYen,
+          isDemo,
+          wifi: true,
+          outlets: true,
+          quiet: true,
+        }),
+      });
+      if (!res.ok) throw new Error('施設を登録できませんでした。入力内容を確認してください。');
       setName('');
-      setProviderName('');
+      setProviderName(isDemo ? '架空の地域サンプル' : '');
       setAddress('');
-      setStatusMsg('施設をD1データベースへ登録しました。');
+      setStatusMsg(isDemo ? 'サンプル施設を登録しました（一般向け検索・予約には表示されません）。' : '施設を非公開で登録しました。確認後、公開に切り替えてください。');
       await onRefreshSpaces();
       setAdminSpaces((await fetchSpaces(true)).spaces);
-    } else {
-      setStatusMsg('登録に失敗しました。');
-    }
+    } catch (error) { setStatusMsg(error instanceof Error ? error.message : '施設を登録できませんでした。'); }
+  };
+
+  const deleteSpace = async (space: Facility) => {
+    if (!window.confirm(`「${space.name}」を削除しますか？予約やお気に入りがある施設は削除できません。`)) return;
+    try {
+      const response = await fetch(`/api/spaces/${space.id}`, { method: 'DELETE', credentials: 'same-origin' });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error || '施設を削除できませんでした。');
+      setStatusMsg('施設を削除しました。');
+      await onRefreshSpaces();
+      setAdminSpaces((await fetchSpaces(true)).spaces);
+      if (selectedMapId === space.id) setSelectedMapId(null);
+    } catch (error) { setStatusMsg(error instanceof Error ? error.message : 'サンプル施設を削除できませんでした。'); }
   };
 
   const togglePublish = async (space: Facility) => {
@@ -127,7 +142,8 @@ export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPa
         <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-blue-600" /> 管理者コンソール
         </h1>
-        <form onSubmit={handleCreate} className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+        <p className="text-xs text-slate-600">サンプル施設はこの管理ページの地図にだけ表示され、一般向けの検索・お気に入り・予約には出ません。</p>
+        <form onSubmit={handleCreate} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
           <input
             type="text"
             placeholder="施設名"
@@ -138,7 +154,7 @@ export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPa
           />
           <input
             type="text"
-            placeholder="提供団体名"
+            placeholder="運営者・施設提供者"
             value={providerName}
             onChange={(e) => setProviderName(e.target.value)}
             required
@@ -152,50 +168,53 @@ export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPa
             required
             className="rounded-xl border border-slate-200 bg-white px-3 py-2"
           />
-          <select
-            value={regionId}
-            onChange={(e) => setRegionId(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2"
-          >
-            {regions.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
+          <input type="text" placeholder="市区町村" value={regionName} onChange={(e) => setRegionName(e.target.value)} required className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">緯度<input aria-label="緯度" type="number" min={34.5} max={35.6} step={0.0001} value={lat} onChange={(e) => setLat(Number(e.target.value))} required className="min-w-0 flex-1" /></label>
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">経度<input aria-label="経度" type="number" min={136.5} max={138} step={0.0001} value={lng} onChange={(e) => setLng(Number(e.target.value))} required className="min-w-0 flex-1" /></label>
           <input
             type="number"
             min={1}
+            max={500}
+            aria-label="座席数"
             value={totalSeats}
             onChange={(e) => setTotalSeats(Number(e.target.value))}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2"
           />
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">利用料（円）<input aria-label="利用料" type="number" min={0} max={2000} value={feeYen} onChange={(e) => setFeeYen(Number(e.target.value))} className="min-w-0 flex-1" /></label>
+          <label className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+            <input type="checkbox" checked={isDemo} onChange={(e) => { setIsDemo(e.target.checked); if (!e.target.checked && providerName === '架空の地域サンプル') setProviderName(''); if (e.target.checked && !providerName) setProviderName('架空の地域サンプル'); }} /> サンプル施設として登録（一般利用不可）
+          </label>
           <button
             type="submit"
-            className="inline-flex items-center justify-center gap-1 rounded-xl bg-blue-600 px-4 py-2 text-white font-medium"
+            className="inline-flex items-center justify-center gap-1 rounded-xl bg-blue-600 px-4 py-2 text-white font-medium lg:col-span-2"
           >
-            <Plus className="h-4 w-4" /> 施設を追加
+            <Plus className="h-4 w-4" /> {isDemo ? 'サンプルを追加' : '非公開の施設情報を追加'}
           </button>
         </form>
         {statusMsg && <p role="status" className="text-xs text-slate-700">{statusMsg}</p>}
       </GlassCard>
 
+      <GlassCard className="p-4 space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-bold text-slate-900">愛知県全域のサンプル地点</h2>
+          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900">サンプル {adminSpaces.filter((space) => space.isDemo).length} 件</span>
+        </div>
+        <p className="text-xs text-slate-600">地図上の地点と名称は表示確認用の架空データです。実在する施設や住所、利用可能な場所を示しません。</p>
+        <FacilityMap spaces={adminSpaces} selectedId={selectedMapId} onSelect={(space) => setSelectedMapId(space.id)} heightClass="h-[360px] lg:h-[480px]" />
+      </GlassCard>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <GlassCard className="p-5 space-y-2 text-xs">
-          <h2 className="text-sm font-bold text-slate-900">登録施設一覧（公開切替）</h2>
+          <h2 className="text-sm font-bold text-slate-900">施設一覧（実施設は確認後に公開）</h2>
           {adminSpaces.map((s) => (
             <div key={s.id} className="flex items-center justify-between border-b border-slate-100 py-2">
-              <span>{s.name}</span>
-              <div className="flex gap-2"><button type="button" onClick={() => { setStatusMsg(''); setEditing(s); }} className="rounded-lg border px-2.5 py-1 text-blue-700" aria-label={`${s.name}を編集`}>編集</button>
-              <button
-                type="button"
-                onClick={() => togglePublish(s)}
-                className={`rounded-lg px-2.5 py-1 font-medium ${
-                  s.isPublished ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                }`}
-              >
-                {s.isPublished ? '公開中' : '非公開'}
-              </button>
+              <span className="min-w-0 flex-1 truncate">{s.name} {s.isDemo && <strong className="text-amber-700">（サンプル）</strong>}</span>
+              <div className="flex shrink-0 gap-2">
+                <button type="button" onClick={() => { setStatusMsg(''); setEditing(s); }} className="rounded-lg border px-2.5 py-1 text-blue-700" aria-label={`${s.name}を編集`}>編集</button>
+                {!s.isDemo && <button type="button" onClick={() => togglePublish(s)} className={`rounded-lg px-2.5 py-1 font-medium ${s.isPublished ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                  {s.isPublished ? '公開中' : '非公開'}
+                </button>}
+                <button type="button" onClick={() => deleteSpace(s)} aria-label={`${s.name}を削除`} className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2.5 py-1 text-rose-700"><Trash2 className="h-3.5 w-3.5" />削除</button>
               </div>
             </div>
           ))}

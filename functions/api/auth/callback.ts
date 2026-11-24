@@ -12,6 +12,7 @@ import {
 interface OAuthStateToken {
   state: string;
   nonce: string;
+  returnTo?: string;
   exp: number;
 }
 
@@ -84,7 +85,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   );
 
   const headers = new Headers({
-    Location: `${url.origin}/mypage`,
+    Location: `${url.origin}${parsedState.returnTo === '/admin' ? '/admin' : '/mypage'}`,
     'Cache-Control': 'no-store',
   });
   headers.append('Set-Cookie', buildCookie(COOKIE_NAME, sessionToken, request.url, 7 * 24 * 60 * 60));

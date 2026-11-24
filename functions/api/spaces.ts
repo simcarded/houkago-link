@@ -48,7 +48,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
           AND r.start_time <= ? AND r.end_time > ?
       ), 0) AS booked_seats
     FROM spaces s
-    ${allowAll ? '' : 'WHERE s.is_published = 1'}
+    ${allowAll ? '' : 'WHERE s.is_published = 1 AND s.is_demo = 0'}
     ORDER BY s.created_at ASC
   `;
   const { results } = await env.DB.prepare(sql).bind(today, time, time).all<SpaceRow>();
@@ -99,8 +99,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const address = String(body.address || '').trim().slice(0, 120);
   const totalSeats = Number(body.totalSeats || 10);
   const feeYen = Math.max(0, Math.min(2000, Number(body.feeYen || 0)));
+  const lat = Number(body.lat);
+  const lng = Number(body.lng);
+  const isDemo = body.isDemo !== false;
 
-  if (!name || !providerName || !address || totalSeats < 1 || totalSeats > 500) {
+  if (!name || !providerName || !address || totalSeats < 1 || totalSeats > 500
+    || !Number.isFinite(lat) || lat < 34.5 || lat > 35.6
+    || !Number.isFinite(lng) || lng < 136.5 || lng > 138) {
     return jsonResponse({ error: '入力内容を確認してください' }, 400);
   }
 
@@ -122,8 +127,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       String(body.regionId || 'nagoya-center'),
       String(body.regionName || '名古屋市中心部'),
       address,
-      Number(body.lat || 35.1709),
-      Number(body.lng || 136.8815),
+      lat,
+      lng,
       feeYen,
       String(body.openTime || '15:30'),
       String(body.closeTime || '20:30'),
@@ -134,10 +139,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       body.soloOk !== false ? 1 : 0,
       body.groupOk ? 1 : 0,
       body.barrierFree ? 1 : 0,
-      JSON.stringify(Array.isArray(body.rules) ? body.rules.slice(0, 6) : ['プロトタイプ表示用施設']),
+      JSON.stringify(Array.isArray(body.rules) ? body.rules.slice(0, 6) : isDemo ? ['サンプル施設です。'] : []),
       String(body.notes || '').slice(0, 200),
       0, // Newly registered facilities require explicit publication.
-      1,
+      isDemo ? 1 : 0,
     )
     .run();
 
