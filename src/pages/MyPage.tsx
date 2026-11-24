@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Heart, LogIn, LogOut, QrCode, Trash2 } from 'lucide-react';
+import { Calendar, Heart, LogIn, LogOut, Trash2 } from 'lucide-react';
 import type { Facility, Reservation, UserSession } from '../types';
 import { GlassCard } from '../components/LiquidUI';
 
@@ -9,7 +9,6 @@ interface MyPageProps {
   reservations: Reservation[];
   favoriteIds: string[];
   onCancelReservation: (id: string) => Promise<void>;
-  onCheckInReservation: (id: string) => Promise<void>;
   onReschedule: (id: string, changes: { reserveDate: string; startTime: string; endTime: string; seatsCount: number }) => Promise<void>;
   onSelectSpace: (space: Facility) => void;
   onLogout: () => Promise<void>;
@@ -22,13 +21,11 @@ export function MyPage({
   reservations,
   favoriteIds,
   onCancelReservation,
-  onCheckInReservation,
   onReschedule,
   onSelectSpace,
   onLogout,
   onDeleteAccount,
 }: MyPageProps) {
-  const [qrTarget, setQrTarget] = useState<Reservation | null>(null);
   const [editing, setEditing] = useState<Reservation | null>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -53,7 +50,7 @@ export function MyPage({
           <p className="text-xs text-slate-600 mt-0.5">
             {session.authenticated
               ? `Googleアカウント連携中（表示名: ${session.user?.displayName}）`
-              : '未ログイン状態（ローカル保存のデモ予約・お気に入りを表示しています）'}
+              : '予約内容やお気に入りを見るにはGoogleログインしてください。'}
           </p>
         </div>
 
@@ -76,9 +73,9 @@ export function MyPage({
       </GlassCard>
 
       <section id="data-notice" aria-labelledby="data-notice-title" className="rounded-2xl border border-slate-200 bg-white/80 p-4 text-xs leading-relaxed text-slate-700">
-        <h2 id="data-notice-title" className="mb-1 font-bold text-slate-900">このプロトタイプでのデータの扱い</h2>
+        <h2 id="data-notice-title" className="mb-1 font-bold text-slate-900">データの扱い</h2>
         <p>Googleログイン時は、Googleの識別子と表示名、保存した予約・お気に入りをデータベースに保存します。Googleのパスワードは保存しません。</p>
-        <p className="mt-1">情報は本人が削除するまで保存します。ログアウトでは削除されません。デモ予約・お気に入りはブラウザに保存されます。</p>
+        <p className="mt-1">情報は本人が削除するまで保存します。ログアウトしても削除されません。</p>
         <p className="mt-1">削除後もCloudflareの時点復元履歴には一定期間残る場合があります。Googleアカウント自体やGoogle側の連携設定は削除されません。</p>
         <p className="mt-1">お問い合わせ: <a className="text-blue-700 underline" href="mailto:ka.kunstudio.3010@gmail.com">ka.kunstudio.3010@gmail.com</a></p>
         <p className="mt-1"><a href="/privacy.html" className="text-blue-700 underline">データの取扱いについて詳しく見る</a></p>
@@ -124,18 +121,6 @@ export function MyPage({
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        setError('');
-                        try { await onCheckInReservation(r.id); setQrTarget(r); }
-                        catch { setError('チェックインを保存できませんでした。再試行してください。'); }
-                      }}
-                      disabled={r.status !== 'confirmed'}
-                      className="inline-flex items-center gap-1 rounded-lg bg-blue-50 border border-blue-200 px-2.5 py-1 text-blue-700"
-                    >
-                      <QrCode className="h-3.5 w-3.5" /> QRデモ
-                    </button>
                     {r.status === 'confirmed' && <button type="button" onClick={() => { setError(''); setEditing(r); }}
                       className="rounded-lg bg-white border border-slate-200 px-2.5 py-1 text-blue-700">変更</button>}
                     <button
@@ -171,11 +156,6 @@ export function MyPage({
             <div className="flex gap-2"><button disabled={saving} className="rounded bg-blue-600 px-3 py-1 text-white">変更を保存</button><button type="button" onClick={() => setEditing(null)} className="rounded border px-3 py-1">戻る</button></div>
           </form>}
 
-          {qrTarget && (
-            <div className="rounded-2xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
-              <strong>QRチェックイン（デモ）:</strong> 受付提示コード「{qrTarget.id}」を確認しました。
-            </div>
-          )}
         </GlassCard>
 
         <GlassCard className="p-5 space-y-3">

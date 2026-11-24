@@ -164,22 +164,6 @@ export function App() {
     }
     const next = reservations.map((r) => (r.id === id ? { ...r, status: 'cancelled' as const } : r));
     setReservations(next);
-    if (!session.authenticated) localStorage.setItem('houkago_demo_reservations', JSON.stringify(next));
-  };
-
-  const handleCheckInReservation = async (id: string) => {
-    if (session.authenticated && !id.startsWith('demo-')) {
-      const response = await fetch(`/api/reservations/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ status: 'checked_in' }),
-      });
-      if (!response.ok) throw new Error('チェックインを保存できませんでした。再試行してください。');
-    }
-    const next = reservations.map((r) => (r.id === id ? { ...r, status: 'checked_in' as const } : r));
-    setReservations(next);
-    if (!session.authenticated) localStorage.setItem('houkago_demo_reservations', JSON.stringify(next));
   };
 
   const handleReschedule = async (id: string, changes: { reserveDate: string; startTime: string; endTime: string; seatsCount: number }) => {
@@ -193,7 +177,6 @@ export function App() {
     }
     const next = reservations.map((reservation) => reservation.id === id ? { ...reservation, ...changes } : reservation);
     setReservations(next);
-    if (!session.authenticated) localStorage.setItem('houkago_demo_reservations', JSON.stringify(next));
   };
 
   if (loading) {
@@ -251,7 +234,6 @@ export function App() {
                     reservations={reservations}
                     favoriteIds={favoriteIds}
                     onCancelReservation={handleCancelReservation}
-                    onCheckInReservation={handleCheckInReservation}
                     onReschedule={handleReschedule}
                     onSelectSpace={setSelectedSpace}
                     onDeleteAccount={async () => {
@@ -265,8 +247,6 @@ export function App() {
                     onLogout={async () => {
                       await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
                       setSession({ authenticated: false, user: null });
-                      localStorage.removeItem('houkago_favorites');
-                      localStorage.removeItem('houkago_demo_reservations');
                       setFavoriteIds([]);
                       setReservations([]);
                       await loadAll();

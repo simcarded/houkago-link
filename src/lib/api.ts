@@ -1,5 +1,4 @@
 import {
-  INITIAL_DEMO_RESERVATIONS,
   INITIAL_REGION_STATS,
 } from '../data/demoData';
 import type {
@@ -54,7 +53,7 @@ export async function fetchRegions(): Promise<{
 function localFavorites(): string[] {
   try {
     const raw = localStorage.getItem('houkago_favorites');
-    if (!raw) return ['sp-sakae-civic'];
+    if (!raw) return [];
     const stored: unknown = JSON.parse(raw);
     return Array.isArray(stored) ? stored.filter((value): value is string => typeof value === 'string') : [];
   } catch { return []; }
@@ -73,18 +72,8 @@ export async function fetchFavorites(authenticated = true): Promise<string[]> {
   }
 }
 
-function localReservations(): Reservation[] {
-  try {
-    const raw = localStorage.getItem('houkago_demo_reservations');
-    if (!raw) return INITIAL_DEMO_RESERVATIONS;
-    const stored: unknown = JSON.parse(raw);
-    // Older versions could store authenticated reservations here. Never show those to a guest.
-    return Array.isArray(stored) ? stored.filter((item): item is Reservation => Boolean(item && typeof item.id === 'string' && item.id.startsWith('demo-'))) : [];
-  } catch { return []; }
-}
-
 export async function fetchReservations(authenticated = true): Promise<Reservation[]> {
-  if (!authenticated) return localReservations();
+  if (!authenticated) return [];
   try {
     const res = await fetch('/api/reservations', { credentials: 'same-origin' });
     if (!res.ok) throw new Error('reservations unavailable');

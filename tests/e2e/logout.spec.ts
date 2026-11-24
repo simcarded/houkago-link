@@ -63,6 +63,6 @@ test('未ログイン時は認証必須の予約・お気に入りAPIを呼ば�
     return route.fulfill({status:503,json:{}});
   });
   await page.goto('/mypage');
-  await expect(page.getByText(/未ログイン状態/)).toBeVisible();
+  await expect(page.getByText(/予約内容やお気に入りを見るにはGoogleログイン/)).toBeVisible();
   expect(privateRequests).toEqual([]);
 });
