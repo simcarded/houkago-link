@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('一度読み込んだ発表モードは通信断でも再表示できる', async ({ page, context }, testInfo) => {
+  test.skip(true, '発表モードは実運用向け画面から外しました。');
   test.skip(testInfo.project.name !== 'desktop', 'Service Worker caching is checked in Chromium.');
   await page.goto('/demo');
   await expect(page.getByText('STEP 1：課題発見')).toBeVisible();

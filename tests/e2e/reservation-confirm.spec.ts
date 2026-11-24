@@ -4,7 +4,7 @@ import { INITIAL_DEMO_SPACES, INITIAL_REGION_STATS } from '../../src/data/demoDa
 test.use({ serviceWorkers: 'block' });
 
 test('保存予約は内容を確認するまで送信しない', async ({ page }) => {
-  const space = INITIAL_DEMO_SPACES[0];
+  const space = { ...INITIAL_DEMO_SPACES[0], isDemo: false };
   let posts = 0;
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
@@ -24,12 +24,14 @@ test('保存予約は内容を確認するまで送信しない', async ({ page 
   await expect(page.getByText(/選択日時の空席: 3席/)).toBeVisible();
   expect(posts).toBe(0);
   await page.getByRole('button', { name:'この内容で確定' }).click();
-  await expect(page.getByText('予約を登録しました（プロトタイプ）')).toBeVisible();
+  await expect(page.getByText('予約を登録しました')).toBeVisible();
   expect(posts).toBe(1);
 });
 
 test('閉じた施設の遅い空席応答を別の施設に表示しない', async ({ page }) => {
-  const [first, second] = INITIAL_DEMO_SPACES;
+  const [rawFirst, rawSecond] = INITIAL_DEMO_SPACES;
+  const first = { ...rawFirst, isDemo: false };
+  const second = { ...rawSecond, isDemo: false };
   let releaseFirst!: () => void;
   const firstPending = new Promise<void>((resolve) => { releaseFirst = resolve; });
   await page.route('**/api/**', async (route) => {
@@ -56,3 +58,4 @@ test('閉じた施設の遅い空席応答を別の施設に表示しない', as
   releaseFirst();
   await expect(page.getByText(/選択日時の空席: 3席/)).toBeVisible();
 });
+

@@ -1,10 +1,9 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
-import type { Facility, RegionStat, Reservation, SearchFilters, UserSession } from './types';
-import { DEFAULT_FILTERS, INITIAL_DEMO_RESERVATIONS, INITIAL_DEMO_SPACES, INITIAL_REGION_STATS } from './data/demoData';
+import type { Facility, Reservation, SearchFilters, UserSession } from './types';
+import { DEFAULT_FILTERS } from './data/demoData';
 import {
   fetchFavorites,
-  fetchRegions,
   fetchReservations,
   fetchSession,
   fetchSpaces,
@@ -14,18 +13,12 @@ import { ErrorRetryCard, FullPageSkeleton } from './components/LiquidUI';
 import { SpaceDetailModal } from './components/SpaceDetailModal';
 import { HomePage } from './pages/HomePage';
 const ExplorePage = lazy(() => import('./pages/ExplorePage').then((module) => ({ default: module.ExplorePage })));
-const DisparityPage = lazy(() => import('./pages/DisparityPage').then((module) => ({ default: module.DisparityPage })));
-const SimulationPage = lazy(() => import('./pages/SimulationPage').then((module) => ({ default: module.SimulationPage })));
-const DemoPage = lazy(() => import('./pages/DemoPage').then((module) => ({ default: module.DemoPage })));
 const MyPage = lazy(() => import('./pages/MyPage').then((module) => ({ default: module.MyPage })));
 const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })));
 
 function parseRoute(pathname: string): AppRoute {
   if (
     pathname === '/explore' ||
-    pathname === '/disparity' ||
-    pathname === '/simulation' ||
-    pathname === '/demo' ||
     pathname === '/mypage' ||
     pathname === '/admin'
   ) {
@@ -40,10 +33,8 @@ export function App() {
   const [loadError, setLoadError] = useState('');
   const [dataSource, setDataSource] = useState<'d1' | 'demo-fallback'>('demo-fallback');
   const [session, setSession] = useState<UserSession>({ authenticated: false, user: null });
-  const [baseSpaces, setBaseSpaces] = useState<Facility[]>(INITIAL_DEMO_SPACES);
-  const loadedSpaces = useRef<Facility[]>(INITIAL_DEMO_SPACES);
-  const [simulatedSpaces, setSimulatedSpaces] = useState<Facility[]>([]);
-  const [regions, setRegions] = useState<RegionStat[]>(INITIAL_REGION_STATS);
+  const [baseSpaces, setBaseSpaces] = useState<Facility[]>([]);
+  const loadedSpaces = useRef<Facility[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
@@ -51,12 +42,12 @@ export function App() {
 
   const loadAll = useCallback(async () => {
     setLoadError('');
+    setLoading(true);
     try {
       const sessionRequest = fetchSession();
-      const [sess, spRes, regRes, favs, resv] = await Promise.all([
+      const [sess, spRes, favs, resv] = await Promise.all([
         sessionRequest,
         fetchSpaces(false),
-        fetchRegions(),
         sessionRequest.then((current) => fetchFavorites(current.authenticated)),
         sessionRequest.then((current) => fetchReservations(current.authenticated)),
       ]);
@@ -64,7 +55,6 @@ export function App() {
       setBaseSpaces(spRes.spaces);
       loadedSpaces.current = spRes.spaces;
       setDataSource(spRes.source);
-      setRegions(regRes.regions);
       setFavoriteIds(favs);
       setReservations(resv);
     } catch (error) {
@@ -72,6 +62,12 @@ export function App() {
     } finally {
       setTimeout(() => setLoading(false), 320);
     }
+  }, []);
+
+  const refreshSpaces = useCallback(async () => {
+    const result = await fetchSpaces(false);
+    setBaseSpaces(result.spaces);
+    setDataSource(result.source);
   }, []);
 
   useEffect(() => {
@@ -110,12 +106,13 @@ export function App() {
     }
   };
 
-  const allSpaces = useMemo(() => [...baseSpaces, ...simulatedSpaces], [baseSpaces, simulatedSpaces]);
+  const allSpaces = dataSource === 'd1'
+    ? baseSpaces.filter((space) => !space.isSimulation && !space.isDemo)
+    : [];
 
   const handleToggleFavorite = async (spaceId: string) => {
     const nextFav = !favoriteIds.includes(spaceId);
-    const isSimulation = simulatedSpaces.some((space) => space.id === spaceId);
-    if (session.authenticated && !isSimulation) {
+    if (session.authenticated) {
       const response = await fetch('/api/favorites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -132,73 +129,29 @@ export function App() {
   };
 
   const handleCreateReservation = async ({
-    space,
-    reserveDate,
-    startTime,
-    endTime,
-    seatsCount,
-    demoOverride,
+    space, reserveDate, startTime, endTime, seatsCount,
   }: {
-    space: Facility;
-    reserveDate: string;
-    startTime: string;
-    endTime: string;
-    seatsCount: number;
-    demoOverride?: boolean;
+    space: Facility; reserveDate: string; startTime: string; endTime: string; seatsCount: number;
   }) => {
-    if (session.authenticated && !demoOverride && !space.isSimulation) {
+    if (!session.authenticated) return { ok: false, error: '予約するにはGoogleログインが必要です。' };
+    if (space.isSimulation) return { ok: false, error: 'この施設はオンライン予約に対応していません。' };
+    try {
       const res = await fetch('/api/reservations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
         body: JSON.stringify({ spaceId: space.id, reserveDate, startTime, endTime, seatsCount }),
       });
       const json = (await res.json()) as { ok?: boolean; id?: string; error?: string };
-      if (!res.ok || !json.ok) {
-        return { ok: false, error: json.error || '予約保存エラー' };
-      }
+      if (!res.ok || !json.ok) return { ok: false, error: json.error || '予約保存エラー' };
       const created: Reservation = {
-        id: json.id || `res-${Date.now()}`,
-        spaceId: space.id,
-        spaceName: space.name,
-        reserveDate,
-        startTime,
-        endTime,
-        seatsCount,
-        status: 'confirmed',
-        createdAt: new Date().toISOString(),
+        id: json.id || `res-${Date.now()}`, spaceId: space.id, spaceName: space.name,
+        reserveDate, startTime, endTime, seatsCount, status: 'confirmed', createdAt: new Date().toISOString(),
       };
-      setReservations((prev) => [created, ...prev]);
-      await loadAll();
+      setReservations((current) => [created, ...current]);
       return { ok: true, reservation: created };
+    } catch {
+      return { ok: false, error: '予約を保存できませんでした。通信状態を確認してください。' };
     }
-
-    // デモ / オフライン時のローカル予約シミュレーション
-    const created: Reservation = {
-      id: `demo-${Date.now().toString().slice(-6)}`,
-      spaceId: space.id,
-      spaceName: space.name,
-      reserveDate,
-      startTime,
-      endTime,
-      seatsCount,
-      status: 'confirmed',
-      isDemo: true,
-      createdAt: new Date().toISOString(),
-    };
-    const next = [created, ...reservations];
-    setReservations(next);
-    if (!session.authenticated) localStorage.setItem('houkago_demo_reservations', JSON.stringify(next));
-    setBaseSpaces((prev) =>
-      prev.map((s) =>
-        s.id === space.id
-          ? { ...s, availableSeats: Math.max(0, s.availableSeats - seatsCount) }
-          : s,
-      ),
-    );
-    return { ok: true, reservation: created };
   };
-
   const handleCancelReservation = async (id: string) => {
     if (session.authenticated && !id.startsWith('demo-')) {
       const response = await fetch(`/api/reservations/${id}`, {
@@ -243,27 +196,6 @@ export function App() {
     if (!session.authenticated) localStorage.setItem('houkago_demo_reservations', JSON.stringify(next));
   };
 
-  const handleAddSimulatedSpace = (space: Omit<Facility, 'id' | 'availableSeats'>) => {
-    const created: Facility = {
-      ...space,
-      id: `sim-${Date.now().toString().slice(-6)}`,
-      availableSeats: space.totalSeats,
-      isSimulation: true,
-    };
-    setSimulatedSpaces((prev) => [...prev, created]);
-  };
-
-  const handleResetAllDemo = () => {
-    setSimulatedSpaces([]);
-    setFilters(DEFAULT_FILTERS);
-    setBaseSpaces(loadedSpaces.current);
-    setReservations((current) => session.authenticated ? current.filter((r) => !r.isDemo) : INITIAL_DEMO_RESERVATIONS);
-    if (!session.authenticated) setFavoriteIds(['sp-sakae-civic']);
-    setSelectedSpace(null);
-    localStorage.removeItem('houkago_demo_reservations');
-    localStorage.removeItem('houkago_favorites');
-  };
-
   if (loading) {
     return <FullPageSkeleton />;
   }
@@ -306,40 +238,10 @@ export function App() {
                 {route === '/explore' && (
                   <ExplorePage
                     spaces={allSpaces}
-                    regions={regions}
                     filters={filters}
                     onChangeFilters={setFilters}
                     onResetFilters={() => setFilters(DEFAULT_FILTERS)}
                     onSelectSpace={setSelectedSpace}
-                  />
-                )}
-                {route === '/disparity' && (
-                  <DisparityPage regions={regions} simulatedSpaces={simulatedSpaces} />
-                )}
-                {route === '/simulation' && (
-                  <SimulationPage
-                    regions={regions}
-                    baseSpacesCount={baseSpaces.length}
-                    baseTotalSeats={baseSpaces.reduce((a, b) => a + b.totalSeats, 0)}
-                    simulatedSpaces={simulatedSpaces}
-                    onAddSimulatedSpace={handleAddSimulatedSpace}
-                    onResetSimulation={() => setSimulatedSpaces([])}
-                  />
-                )}
-                {route === '/demo' && (
-                  <DemoPage
-                    spaces={allSpaces}
-                    regions={regions}
-                    simulatedSpaces={simulatedSpaces}
-                    favoriteIds={favoriteIds}
-                    reservations={reservations}
-                    filters={filters}
-                    onChangeFilters={setFilters}
-                    onResetFilters={() => setFilters(DEFAULT_FILTERS)}
-                    onAddSimulatedSpace={handleAddSimulatedSpace}
-                    onResetAllDemo={handleResetAllDemo}
-                    onSelectSpace={setSelectedSpace}
-                    session={session}
                   />
                 )}
                 {route === '/mypage' && (
@@ -374,9 +276,9 @@ export function App() {
                 {route === '/admin' && (
                   <AdminPage
                     session={session}
+                    regions={[]}
                     spaces={allSpaces}
-                    regions={regions}
-                    onRefreshSpaces={loadAll}
+                    onRefreshSpaces={refreshSpaces}
                   />
                 )}
               </motion.div>
@@ -385,8 +287,8 @@ export function App() {
         </main>
 
         <footer className="mx-auto max-w-7xl px-4 sm:px-6 pt-8 text-center text-[11px] text-slate-500 space-y-1">
-          <div>放課後Link｜高校地理授業向けプロトタイプ（掲載施設・企業名・地域統計は仮想データです）</div>
-          <div>実運用時には施設管理責任・安全管理・保護者連絡・プライバシー保護体制の検討が必要です。</div>
+          <div>放課後Link｜学習場所の検索・予約</div>
+          <div>施設情報や予約枠は運営者の確認後に掲載しています。利用前に各施設の案内をご確認ください。</div>
           <div><a href="/privacy.html" className="text-blue-700 underline">データの取扱い</a></div>
         </footer>
 
@@ -397,8 +299,6 @@ export function App() {
           onToggleFavorite={handleToggleFavorite}
           session={session}
           onCreateReservation={handleCreateReservation}
-          allowDemoBooking={route === '/demo' || dataSource === 'demo-fallback' || Boolean(selectedSpace?.isSimulation)}
-          demoOnly={route === '/demo' || Boolean(selectedSpace?.isSimulation)}
         />
       </div>
     </MotionConfig>

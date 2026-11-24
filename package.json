@@ -11,7 +11,7 @@
     "lint": "eslint src functions",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "cf:dev": "npm run build && npx wrangler pages dev dist --d1=DB=houkago-link-db --ai=AI",
+    "cf:dev": "npm run build && npx wrangler pages dev dist --d1=DB=houkago-link-db",
     "cf:deploy": "npm run build && npx wrangler pages deploy dist --project-name=houkago-link"
   },
   "dependencies": {

@@ -4,7 +4,7 @@ import { INITIAL_DEMO_SPACES, INITIAL_REGION_STATS } from '../../src/data/demoDa
 test.use({ serviceWorkers: 'block' });
 
 test('お気に入りは保存失敗を表示し、成功時だけ切り替える', async ({ page }) => {
-  const space = INITIAL_DEMO_SPACES[0];
+  const space = { ...INITIAL_DEMO_SPACES[0], isDemo: false };
   let fail = true;
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname;

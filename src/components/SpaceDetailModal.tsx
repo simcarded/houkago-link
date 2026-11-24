@@ -33,8 +33,6 @@ interface SpaceDetailModalProps {
     seatsCount: number;
     demoOverride?: boolean;
   }) => Promise<{ ok: boolean; error?: string; reservation?: Reservation }>;
-  allowDemoBooking?: boolean;
-  demoOnly?: boolean;
 }
 
 export function SpaceDetailModal({
@@ -44,8 +42,6 @@ export function SpaceDetailModal({
   onToggleFavorite,
   session,
   onCreateReservation,
-  allowDemoBooking = false,
-  demoOnly = false,
 }: SpaceDetailModalProps) {
   const [reserveDate, setReserveDate] = useState(todayInJapan);
   const [startTime, setStartTime] = useState('16:30');
@@ -55,7 +51,7 @@ export function SpaceDetailModal({
   const [error, setError] = useState('');
   const [favoriteError, setFavoriteError] = useState('');
   const [savingFavorite, setSavingFavorite] = useState(false);
-  const [bookingMode, setBookingMode] = useState<'demo' | 'saved' | null>(null);
+  const [bookingMode, setBookingMode] = useState<'saved' | null>(null);
   const [availableForSlot, setAvailableForSlot] = useState<number | null>(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [completed, setCompleted] = useState<Reservation | null>(null);
@@ -74,11 +70,10 @@ export function SpaceDetailModal({
 
   if (!space) return null;
 
-  const reviewBooking = async (mode: 'demo' | 'saved') => {
+  const reviewBooking = async (mode: 'saved') => {
     setError('');
     setAvailableForSlot(null);
     setBookingMode(mode);
-    if (mode === 'demo') return;
     const controller = new AbortController();
     availabilityRequest.current = controller;
     setCheckingAvailability(true);
@@ -147,7 +142,7 @@ export function SpaceDetailModal({
                   </span>
                 ) : (
                   <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] text-slate-600">
-                    デモ用仮想施設
+                    参考用施設情報
                   </span>
                 )}
               </div>
@@ -213,7 +208,7 @@ export function SpaceDetailModal({
             <div className="liquid-glass-subtle rounded-2xl p-3">
               <div className="text-slate-500">混雑目安</div>
               <div className="text-sm font-bold text-slate-900 mt-0.5">17時台 やや混雑</div>
-              <div className="text-[10px] text-slate-500">※デモ参考値</div>
+              <div className="text-[10px] text-slate-500">参考値</div>
             </div>
           </div>
 
@@ -252,7 +247,7 @@ export function SpaceDetailModal({
                 {space.address}
               </span>
               <a
-                href={`https://www.openstreetmap.org/directions?to=${space.lat},${space.lng}`}
+                href={`https://www.google.com/maps/dir/?api=1&destination=${space.lat},${space.lng}&travelmode=walking`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-blue-700 hover:underline shrink-0"
@@ -279,7 +274,7 @@ export function SpaceDetailModal({
             >
               <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
                 <CheckCircle2 className="h-5 w-5" />
-                予約を登録しました（プロトタイプ）
+                予約を登録しました
               </div>
               <div className="text-xs text-emerald-900 space-y-1">
                 <div>予約ID: {completed.id}</div>
@@ -288,23 +283,23 @@ export function SpaceDetailModal({
                 </div>
                 <div className="flex items-center gap-2 pt-1 text-[11px] text-emerald-800">
                   <QrCode className="h-4 w-4 shrink-0" />
-                  <span>デモ用QRチェックイン受付コード発行済み（マイページから確認できます）</span>
+                  <span>受付コード: {completed.id}</span>
                 </div>
               </div>
               <p className="text-[11px] text-slate-600">
-                ※本画面は構想を表現するプロトタイプであり、実在施設への入室権限を付与するものではありません。
+                予約確定はアプリ内の記録です。施設の入室案内を必ずご確認ください。
               </p>
             </motion.div>
           ) : bookingMode ? (
             <div className="rounded-2xl bg-blue-50 border border-blue-200 p-4 space-y-3" aria-labelledby="booking-confirmation">
-              <h3 id="booking-confirmation" className="text-sm font-bold text-slate-900">予約内容の確認{bookingMode === 'demo' ? '（発表用デモ）' : ''}</h3>
+              <h3 id="booking-confirmation" className="text-sm font-bold text-slate-900">予約内容の確認</h3>
               <p className="text-sm text-slate-800">{space.name}<br />{reserveDate} {startTime}〜{endTime} ・ {seatsCount}席</p>
-              {bookingMode === 'demo' ? <p className="text-xs text-slate-600">発表用デモの空席数です。</p> :
-                <p className="text-xs text-slate-600">{checkingAvailability ? '選択日時の空席を確認中…' : availableForSlot === null ? '空席を確認できませんでした。' : `選択日時の空席: ${availableForSlot}席`} 確定時に再確認します。</p>}
+              <>
+                <p className="text-xs text-slate-600">{checkingAvailability ? '選択日時の空席を確認中…' : availableForSlot === null ? '空席を確認できませんでした。' : `選択日時の空席: ${availableForSlot}席`} 確定時に再確認します。</p></>
               {error && <p role="alert" className="text-xs text-rose-700">{error}</p>}
               <div className="flex flex-wrap gap-2">
                 <button type="button" disabled={submitting || checkingAvailability} onClick={() => { setBookingMode(null); setError(''); }} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs">内容を修正</button>
-                <button type="button" disabled={submitting || checkingAvailability || (bookingMode === 'saved' && (availableForSlot === null || availableForSlot < seatsCount))} onClick={() => handleBook(bookingMode === 'demo')} className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-medium text-white disabled:opacity-50">{submitting ? '予約処理中...' : 'この内容で確定'}</button>
+                <button type="button" disabled={submitting || checkingAvailability || (bookingMode === 'saved' && (availableForSlot === null || availableForSlot < seatsCount))} onClick={() => handleBook(false)} className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-medium text-white disabled:opacity-50">{submitting ? '予約処理中...' : 'この内容で確定'}</button>
               </div>
             </div>
           ) : (
@@ -364,20 +359,10 @@ export function SpaceDetailModal({
 
               <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                 <span className="text-[11px] text-slate-500">
-                  ※選択日時の空席は予約時に確認します。実用化時は安全管理・入退室確認が必要です。
+                  ※選択日時の空席を予約時に再確認します。
                 </span>
                 <div className="flex flex-wrap gap-2">
-                  {allowDemoBooking && (
-                    <button
-                      type="button"
-                      disabled={submitting || space.availableSeats < seatsCount}
-                      onClick={() => reviewBooking('demo')}
-                      className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-                    >
-                      デモ予約の内容を確認（発表用）
-                    </button>
-                  )}
-                  {!demoOnly && (session.authenticated ? (
+                  {session.authenticated ? (
                     <button
                       type="button"
                       disabled={submitting}
@@ -396,7 +381,7 @@ export function SpaceDetailModal({
                         Googleでログインして予約保存
                       </a>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>

@@ -1,14 +1,12 @@
 import { useMemo, useState } from 'react';
 import {
-  CheckSquare,
   LocateFixed,
   Map as MapIcon,
   List,
   SlidersHorizontal,
   Sparkles,
-  Scale,
 } from 'lucide-react';
-import type { AiRecommendationResult, Facility, RegionStat, SearchFilters } from '../types';
+import type { AiRecommendationResult, Facility, SearchFilters } from '../types';
 import { filterSpaces, haversineKm } from '../lib/disparity';
 import { requestAiRecommend } from '../lib/api';
 import { FacilityMap } from '../components/FacilityMap';
@@ -16,7 +14,6 @@ import { GlassCard } from '../components/LiquidUI';
 
 interface ExplorePageProps {
   spaces: Facility[];
-  regions: RegionStat[];
   filters: SearchFilters;
   onChangeFilters: (next: SearchFilters) => void;
   onResetFilters: () => void;
@@ -25,7 +22,6 @@ interface ExplorePageProps {
 
 export function ExplorePage({
   spaces,
-  regions,
   filters,
   onChangeFilters,
   onResetFilters,
@@ -45,7 +41,6 @@ export function ExplorePage({
   const [aiQuery, setAiQuery] = useState('');
   const [aiResult, setAiResult] = useState<AiRecommendationResult | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
-  const [compareIds, setCompareIds] = useState<string[]>([]);
 
   const filteredSpaces = useMemo(() => {
     const base = filterSpaces(spaces, filters, userLocation);
@@ -96,13 +91,6 @@ export function ExplorePage({
     setAiLoading(false);
   };
 
-  const toggleCompare = (id: string) => {
-    setCompareIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : prev.length < 3 ? [...prev, id] : prev,
-    );
-  };
-
-  const comparedSpaces = spaces.filter((s) => compareIds.includes(s.id));
 
   return (
     <div className="space-y-4">
@@ -149,18 +137,6 @@ export function ExplorePage({
               placeholder="キーワード絞り込み"
               className="rounded-xl border border-slate-200 bg-white/90 px-3 py-1.5 text-xs w-44"
             />
-            <select
-              value={filters.regionId}
-              onChange={(e) => onChangeFilters({ ...filters, regionId: e.target.value })}
-              className="rounded-xl border border-slate-200 bg-white/90 px-2.5 py-1.5 text-xs"
-            >
-              <option value="">すべての地域</option>
-              {regions.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
             <button
               type="button"
               onClick={() => setShowFilters((v) => !v)}
@@ -271,63 +247,16 @@ export function ExplorePage({
         )}
       </GlassCard>
 
-      {comparedSpaces.length >= 2 && (
-        <GlassCard className="p-4 overflow-x-auto">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-              <Scale className="h-4 w-4 text-blue-600" /> 施設比較（最大3件）
-            </div>
-            <button
-              type="button"
-              onClick={() => setCompareIds([])}
-              className="text-xs text-slate-500 hover:text-slate-900"
-            >
-              比較をクリア
-            </button>
-          </div>
-          <table className="w-full text-xs text-left">
-            <thead>
-              <tr className="border-b border-slate-200 text-slate-500">
-                <th className="py-1.5 pr-3">施設名</th>
-                <th className="py-1.5 pr-3">料金</th>
-                <th className="py-1.5 pr-3">営業時間</th>
-                <th className="py-1.5 pr-3">空席</th>
-                <th className="py-1.5">設備</th>
-              </tr>
-            </thead>
-            <tbody>
-              {comparedSpaces.map((s) => (
-                <tr key={s.id} className="border-b border-slate-100">
-                  <td className="py-1.5 pr-3 font-medium">{s.name}</td>
-                  <td className="py-1.5 pr-3">{s.feeYen === 0 ? '無料' : `${s.feeYen}円`}</td>
-                  <td className="py-1.5 pr-3">
-                    {s.openTime}〜{s.closeTime}
-                  </td>
-                  <td className="py-1.5 pr-3">
-                    {s.availableSeats}/{s.totalSeats}
-                  </td>
-                  <td className="py-1.5">
-                    {[s.wifi && 'Wi-Fi', s.outlets && '電源', s.groupOk && 'グループ']
-                      .filter(Boolean)
-                      .join(' / ')}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </GlassCard>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         <div
           className={`lg:col-span-5 space-y-3 ${mobileView === 'map' ? 'hidden lg:block' : 'block'}`}
         >
           <div className="text-xs text-slate-600 px-1">
-            検索結果 {filteredSpaces.length}件（比較したい施設にチェックを入れられます）
+            検索結果 {filteredSpaces.length}件
           </div>
           {filteredSpaces.length === 0 ? (
             <GlassCard className="p-6 text-center text-sm text-slate-600">
-              条件に一致する学習スペースがありません。条件を緩めて再検索してください。
+              現在、予約可能な施設情報はありません。運営が施設情報を確認・登録後に掲載します。
             </GlassCard>
           ) : (
             <div className="space-y-3 lg:max-h-[620px] lg:overflow-y-auto pr-0.5">
@@ -350,12 +279,7 @@ export function ExplorePage({
                         <div className="text-[11px] text-slate-500 flex items-center gap-2">
                           <span>{s.regionName}</span>
                           {dist !== null && <span>現在地から約 {dist.toFixed(1)} km</span>}
-                          {s.isSimulation && (
-                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 font-medium">
-                              シミュレーション追加
-                            </span>
-                          )}
-                        </div>
+                            </div>
                         <h3 className="font-bold text-sm text-slate-900 mt-0.5">{s.name}</h3>
                       </div>
                       <span className="shrink-0 rounded-xl bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
@@ -363,25 +287,11 @@ export function ExplorePage({
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-slate-600">
+                    <div className="text-xs text-slate-600">
                       <span>
                         空席 <strong className="text-slate-900">{s.availableSeats}</strong>/{s.totalSeats}席 ・{' '}
                         {s.openTime}〜{s.closeTime}
                       </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleCompare(s.id);
-                        }}
-                        className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 border text-[11px] ${
-                          compareIds.includes(s.id)
-                            ? 'bg-blue-600 border-blue-600 text-white'
-                            : 'bg-white border-slate-200 text-slate-600'
-                        }`}
-                      >
-                        <CheckSquare className="h-3 w-3" /> 比較
-                      </button>
                     </div>
                   </GlassCard>
                 );

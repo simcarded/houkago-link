@@ -95,7 +95,7 @@ export function MyPage({
 
       {new URLSearchParams(window.location.search).has('auth_error') && (
         <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          Googleログインは現在利用できません。発表用のデモ予約はプレゼンモードで利用できます。
+          Googleログインを完了できませんでした。時間をおいて再度お試しください。
         </p>
       )}
 

@@ -105,8 +105,18 @@ export function AdminPage({ session, spaces, regions, onRefreshSpaces }: AdminPa
       });
       const data = await response.json() as { error?: string };
       if (!response.ok) throw new Error(data.error || '施設を更新できませんでした。');
-      setEditing(null); setStatusMsg('施設情報を更新しました。');
-      await onRefreshSpaces(); setAdminSpaces((await fetchSpaces(true)).spaces);
+      setEditing(null);
+      setStatusMsg('施設情報を更新しました。');
+      // The save has succeeded; a follow-up refresh failure must not report it as failed.
+      try {
+        await onRefreshSpaces();
+        setAdminSpaces((await fetchSpaces(true)).spaces);
+      } catch {
+        setAdminSpaces((current) => current.map((space) =>
+          space.id === editing.id ? { ...space, name, providerName, address, notes, totalSeats, feeYen, openTime, closeTime, wifi, outlets, quiet, soloOk, groupOk, barrierFree } : space,
+        ));
+      }
+      setStatusMsg('施設情報を更新しました。');
     } catch (error) { setStatusMsg(error instanceof Error ? error.message : '施設を更新できませんでした。'); }
     finally { setSaving(false); }
   };

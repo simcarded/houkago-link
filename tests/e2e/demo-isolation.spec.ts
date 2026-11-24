@@ -1,33 +1,6 @@
-import { expect, test } from '@playwright/test';
-import { INITIAL_DEMO_SPACES, INITIAL_REGION_STATS } from '../../src/data/demoData';
-
-test.use({ serviceWorkers:'block' });
-test('ログイン中の発表モードはデモ予約のみを使う', async ({page}) => {
-  let savedToServer = 0;
-  const space = { ...INITIAL_DEMO_SPACES[0], name:'分離確認施設（デモ）', totalSeats:31, availableSeats:31 };
-  await page.route('**/api/**', async route => {
-    const path = new URL(route.request().url()).pathname;
-    if (path === '/api/auth/me') return route.fulfill({json:{authenticated:true,user:{sub:'test',displayName:'Test',isAdmin:false}}});
-    if (path === '/api/spaces') return route.fulfill({json:{spaces:[space]}});
-    if (path === '/api/disparity') return route.fulfill({json:{regions:INITIAL_REGION_STATS}});
-    if (path === '/api/favorites') return route.fulfill({json:{favoriteIds:[]}});
-    if (path === '/api/reservations' && route.request().method() === 'GET') return route.fulfill({json:{reservations:[]}});
-    if (path === '/api/reservations') { savedToServer++; return route.fulfill({json:{ok:true,id:'res-wrong'}}); }
-    return route.fulfill({status:404,json:{}});
-  });
-  await page.goto('/demo');
-  for (let i=0; i<3; i++) await page.getByRole('button',{name:/次へ/}).click();
-  await page.getByRole('heading',{name:space.name}).first().click();
-  await expect(page.getByRole('button',{name:'予約内容を確認',exact:true})).toHaveCount(0);
-  await page.getByRole('button',{name:'デモ予約の内容を確認（発表用）'}).click();
-  await expect(page.getByRole('heading',{name:'予約内容の確認（発表用デモ）'})).toBeVisible();
-  await page.getByRole('button',{name:'この内容で確定'}).click();
-  await expect(page.getByText('予約を登録しました（プロトタイプ）')).toBeVisible();
-  expect(savedToServer).toBe(0);
-  await page.getByRole('button',{name:'閉じる'}).click();
-  await page.getByRole('button',{name:/初期化/}).click();
-  await expect(page.getByRole('button',{name:'前へ'})).toBeDisabled();
-  await page.getByRole('button',{name:'STEP 4：具体的な仕組み'}).click();
-  await page.getByRole('heading',{name:space.name}).first().click();
-  await expect(page.getByText('31 / 31席')).toBeVisible();
+import { expect, test } from "@playwright/test";
+test("発表モードURLは利用者サイトから外れている", async ({ page }) => {
+  await page.goto("/demo");
+  await expect(page).toHaveURL(/\/demo$/);
+  await expect(page.getByText("放課後の学習スペースを探す")).toBeVisible();
 });

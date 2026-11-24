@@ -1,6 +1,5 @@
 import {
   INITIAL_DEMO_RESERVATIONS,
-  INITIAL_DEMO_SPACES,
   INITIAL_REGION_STATS,
 } from '../data/demoData';
 import type {
@@ -33,7 +32,7 @@ export async function fetchSpaces(includeUnpublished = false): Promise<{
     if (!Array.isArray(data.spaces)) throw new Error('Invalid spaces response');
     return { spaces: data.spaces, source: 'd1' };
   } catch {
-    return { spaces: INITIAL_DEMO_SPACES, source: 'demo-fallback' };
+    return { spaces: [], source: 'demo-fallback' };
   }
 }
 

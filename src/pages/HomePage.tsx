@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import {
   ArrowRight,
-  BarChart3,
-  Building2,
   CalendarCheck,
   Heart,
   MapPin,
@@ -47,7 +45,7 @@ export function HomePage({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-[11px] font-medium text-blue-700 mb-2">
-              地理授業プロトタイプ・愛知県モデル
+              学習スペースを探して予約
             </span>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
               放課後の学習スペースを探す
@@ -117,25 +115,7 @@ export function HomePage({
         </div>
       </GlassCard>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <GlassCard interactive onClick={() => onNavigate('/disparity')} className="p-5 flex items-center justify-between">
-          <div>
-            <div className="text-xs font-medium text-blue-700">課題の可視化</div>
-            <div className="text-base font-bold text-slate-900 mt-0.5">地域格差マップ</div>
-            <div className="text-xs text-slate-600 mt-1">愛知県内の地域別施設数・座席数を比較</div>
-          </div>
-          <BarChart3 className="h-7 w-7 text-blue-600 shrink-0" />
-        </GlassCard>
-
-        <GlassCard interactive onClick={() => onNavigate('/simulation')} className="p-5 flex items-center justify-between">
-          <div>
-            <div className="text-xs font-medium text-emerald-700">解決策の実演</div>
-            <div className="text-base font-bold text-slate-900 mt-0.5">企業・自治体の施設提供</div>
-            <div className="text-xs text-slate-600 mt-1">空き会議室追加による変化をシミュレーション</div>
-          </div>
-          <Building2 className="h-7 w-7 text-emerald-600 shrink-0" />
-        </GlassCard>
-
+      <div className="grid grid-cols-1 gap-4">
         <GlassCard interactive onClick={() => onNavigate('/explore')} className="p-5 flex items-center justify-between">
           <div>
             <div className="text-xs font-medium text-indigo-700">条件から検索</div>
@@ -148,7 +128,7 @@ export function HomePage({
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">空席のある学習スペース（愛知県モデル）</h2>
+          <h2 className="text-lg font-bold text-slate-900">空席のある学習スペース</h2>
           <button
             type="button"
             onClick={() => onNavigate('/explore')}

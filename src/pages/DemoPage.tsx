@@ -234,7 +234,6 @@ export function DemoPage(props: DemoPageProps) {
               {step4Tab === 'book' ? (
                 <ExplorePage
                   spaces={props.spaces}
-                  regions={props.regions}
                   filters={props.filters}
                   onChangeFilters={props.onChangeFilters}
                   onResetFilters={props.onResetFilters}

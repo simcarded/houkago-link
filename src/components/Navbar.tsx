@@ -1,21 +1,10 @@
 import { motion } from 'motion/react';
-import {
-  BarChart3,
-  Building2,
-  Compass,
-  Home,
-  Presentation,
-  ShieldCheck,
-  User,
-} from 'lucide-react';
+import { CalendarCheck, Home, ShieldCheck, User } from 'lucide-react';
 import type { UserSession } from '../types';
 
 export type AppRoute =
   | '/'
   | '/explore'
-  | '/disparity'
-  | '/simulation'
-  | '/demo'
   | '/mypage'
   | '/admin';
 
@@ -28,10 +17,7 @@ interface NavbarProps {
 
 const NAV_ITEMS: Array<{ route: AppRoute; label: string; icon: typeof Home }> = [
   { route: '/', label: 'ホーム', icon: Home },
-  { route: '/explore', label: '探す・地図', icon: Compass },
-  { route: '/disparity', label: '地域格差', icon: BarChart3 },
-  { route: '/simulation', label: '施設提供', icon: Building2 },
-  { route: '/demo', label: '発表モード', icon: Presentation },
+  { route: '/explore', label: '予約する', icon: CalendarCheck },
 ];
 
 export function Navbar({ currentRoute, onNavigate, session, dataSource }: NavbarProps) {
@@ -52,9 +38,8 @@ export function Navbar({ currentRoute, onNavigate, session, dataSource }: Navbar
                 放課後Link
               </div>
               <div className="text-[10px] text-slate-500 flex items-center gap-1.5">
-                <span>プロトタイプ</span>
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                <span>{dataSource === 'd1' ? 'データ接続中' : 'データ取得不可・デモ表示'}</span>
+                <span>{dataSource === 'd1' ? '施設情報を表示中' : '施設情報を取得できません'}</span>
               </div>
             </div>
           </button>

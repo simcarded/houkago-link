@@ -222,7 +222,7 @@ export function FacilityMap({
         )}
 
         {selected && (
-          <div className="absolute bottom-3 left-3 right-3 sm:right-auto sm:w-80 liquid-glass rounded-2xl p-3 flex items-center justify-between gap-3">
+          <div data-testid="selected-facility-route" className="absolute bottom-3 left-3 right-3 sm:right-auto sm:w-80 liquid-glass rounded-2xl p-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-xs font-bold text-slate-900 truncate">{selected.name}</div>
               <div className="text-[11px] text-slate-600">
@@ -231,7 +231,7 @@ export function FacilityMap({
               </div>
             </div>
             <a
-              href={`https://www.openstreetmap.org/directions?to=${selected.lat},${selected.lng}`}
+              href={`https://www.google.com/maps/dir/?api=1&destination=${selected.lat},${selected.lng}&travelmode=walking`}
               target="_blank"
               rel="noreferrer"
               className="shrink-0 inline-flex items-center gap-1 rounded-xl bg-blue-600 px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-blue-700"
